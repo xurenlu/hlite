@@ -496,7 +496,7 @@ build_FCGI_UNKNOWN_TYPE(char *buf, int bufsize, unsigned char type)
 
 
 
-
+/**
 int lite_response_fcgi ( 
         struct evhttp_request * request,
         struct evbuffer * evbuf,
@@ -517,15 +517,10 @@ int lite_response_fcgi (
   int len, ret;
   int i, j;
 
-  /*
+  *
    * Build query_string.  Make sure timestamp is last!
    */
-  /**
-  sprintf(query_string,
-      "do=1&util=ping&host=192.168.10.1&user=Tim%%20Brecht&timestamp=%s",
-      ctime(&start));
-  query_string[strlen(query_string) - 1] = '\0';  // strip trailing LF
-  */
+  /** sprintf(query_string, "do=1&util=ping&host=192.168.10.1&user=Tim%%20Brecht&timestamp=%s", ctime(&start)); query_string[strlen(query_string) - 1] = '\0';  // strip trailing LF 
 
   if ((sd = fcgi_connect(fcgi_server_addr)) < 0) {
     perror("connect");
@@ -533,9 +528,7 @@ int lite_response_fcgi (
   }
 
  int req_id=34;
-  /*
-   * REQUEST step 1: begin request
-   */
+  * * REQUEST step 1: begin request 
     //int 1=34;
   req = reqbuf;
   len = build_FCGI_BEGIN_REQUEST(req, reqbuf + sizeof(reqbuf) - req, req_id, FCGI_RESPONDER, FCGI_KEEP_CONN);
@@ -551,9 +544,7 @@ int lite_response_fcgi (
   }
 #endif
 
-  /*
-   * REQUEST step 2a: send global parameters
-   */
+  //* * REQUEST step 2a: send global parameters 
 
   len = build_FCGI_PARAMS(req, reqbuf + sizeof(reqbuf) - req, req_id,
       // CGI global variables
@@ -579,9 +570,7 @@ int lite_response_fcgi (
   }
 #endif
 
-  /*
-   * REQUEST step 2b: send request-specific parameters
-   */
+  //* * REQUEST step 2b: send request-specific parameters 
 
   switch (request_method) {
     case GET:
@@ -620,9 +609,7 @@ int lite_response_fcgi (
       break;
   }
 
-  /*
-   * REQUEST step 2c: finish sending parameters
-   */
+  //* * REQUEST step 2c: finish sending parameters 
 
 #if 1
   len = build_FCGI_PARAMS(req, reqbuf + sizeof(reqbuf) - req, req_id, NULL);
@@ -639,9 +626,7 @@ int lite_response_fcgi (
 #endif
 #endif
 
-  /*
-   * REQUEST step 3: send stdin stream
-   */
+  //* * REQUEST step 3: send stdin stream 
     DHERE
   switch (request_method) {
     case POST:
@@ -660,9 +645,7 @@ int lite_response_fcgi (
       break;
   }
 
-  /*
-   * REQUEST step 4: finish request
-   */
+  //REQUEST step 4: finish request 
 
     DHERE
   len = build_FCGI_STDIN(req, reqbuf + sizeof(reqbuf) - req, req_id, 0, NULL);
@@ -691,9 +674,6 @@ int lite_response_fcgi (
   }
 #endif
     DHERE
-  /*
-   * READ REPLY
-   */
 
 
     FCGI_Header * hdr;
@@ -725,3 +705,4 @@ int lite_response_fcgi (
     free(hdr);
     return 0;
 }
+*/

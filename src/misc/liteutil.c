@@ -1,10 +1,12 @@
 #include "stdlib.h"
 #include "string.h"
-#include "hliteutil.h"
+#include "liteutil.h"
 #include "stdio.h"
+#include <assert.h>
 /**
  * 初始化一个字符串结构,指定设定为空,长度为0;
  **/
+
 hlite_string *  hlite_init_string(){
     hlite_string * p;
     p=malloc(sizeof(hlite_string));
@@ -94,8 +96,8 @@ int hlite_list_shift(){}
  */
 void *  hlite_list_pop(hlite_list  * list){
     if(list->pos>0){
-        void * p=list->p[list->pos];
         list->pos--;
+        void * p=list->p[list->pos];
         return p;
     }
     else{
@@ -192,6 +194,10 @@ hlite_keyval_pair * hlite_init_keyval_pair(){
 
 }
 
+void hlite_free_keyval_pair(hlite_keyval_pair * kvpair){
+
+}
+
 int maink(int argc,char ** argv){
     /**
     hlite_string * p;
@@ -265,6 +271,8 @@ int hlite_parseconfigfile(char * configfilepath){
     }
     char  buf[1024];
     char key[1024],val[1024];
+    char root[1024],host[1024],access_log[1024],error_log[1024],cgi_dir[1024];
+    int daemon_y_n,childs,clients,port;
     while(fgets(buf,1024,fd)){
         if(cbstrfwimatch(buf, comment))
             continue;
@@ -316,5 +324,92 @@ int hlite_parseconfigfile(char * configfilepath){
     }
     fclose(fd);
     return 0;
+}
+
+
+
+
+void
+hexdump(const void *buf, int len)
+{
+  int offset = 0;
+  int line_offset;
+
+  while (offset < len) {
+    printf("%08X:", offset);
+    for (line_offset = 0; line_offset < 16; line_offset++) {
+      if ((line_offset % 4) == 0)
+    printf(" ");
+      if (offset + line_offset < len)
+    printf(" %02X", ((unsigned char *) buf)[offset + line_offset]);
+      else
+    printf("   ");
+    }
+    printf("  ");
+    for (line_offset = 0; line_offset < 16; line_offset++) {
+      if (offset + line_offset >= len)
+    break;
+      printf("%c", isprint(((unsigned char *) buf)[offset + line_offset]) ?
+      ((unsigned char *) buf)[offset + line_offset] : '.');
+    }
+    offset += 16;
+    printf("\n");
+  }
+}
+
+
+
+//void log_access(char * msg){  fputs(msg,access_log_fd);   fflush(access_log_fd);  }
+/* Convert the letters of a string to lower case. */
+char *cbstrtolower(char *str){
+  int i;
+  assert(str);
+  for(i = 0; str[i] != '\0'; i++){
+    if(str[i] >= 'A' && str[i] <= 'Z') str[i] += 'a' - 'A';
+  }
+  return str;
+}
+
+/* compare two strings with case insensitive evaluation. */
+int cbstricmp(const char *astr, const char *bstr){
+  int ac, bc;
+  assert(astr && bstr);
+  while(*astr != '\0'){
+    if(*bstr == '\0') return 1;
+    ac = (*astr >= 'A' && *astr <= 'Z') ? *astr + ('a' - 'A') : *(unsigned char *)astr;
+    bc = (*bstr >= 'A' && *bstr <= 'Z') ? *bstr + ('a' - 'A') : *(unsigned char *)bstr;
+    if(ac != bc) return ac - bc;
+    astr++;
+    bstr++;
+  }
+  return *bstr == '\0' ? 0 : -1;
+}
+
+/* Check whether a string begins with a key, with case insensitive evaluation. */
+int cbstrfwimatch(const char *str, const char *key){
+  int sc, kc;
+  assert(str && key);
+  while(*key != '\0'){
+    if(*str == '\0') return FALSE;
+    sc = *str;
+    if(sc >= 'A' && sc <= 'Z') sc += 'a' - 'A';
+    kc = *key;
+    if(kc >= 'A' && kc <= 'Z') kc += 'a' - 'A';
+    if(sc != kc) return FALSE;
+    key++;
+    str++;
+  }
+  return TRUE;
+}
+/* Check whether a string ends with a key. */
+int cbstrbwmatch(const char *str, const char *key){
+  int slen, klen, i;
+  assert(str && key);
+  slen = strlen(str);
+  klen = strlen(key);
+  for(i = 1; i <= klen; i++){
+    if(i > slen || str[slen-i] != key[klen-i]) return FALSE;
+  }
+  return TRUE;
 }
 
