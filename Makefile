@@ -1,10 +1,20 @@
-all:hlite
-lite:hlite.o hliteutil.o fcgi.o
-	gcc -O0 -o hlite hlite.o hliteutil.o fcgi.o -lm 
-hlite.o:hlite.c
-	gcc -c -g -O0 lite.c
-hliteutil.o:hliteutil.c
-	gcc -c -g -O0 hliteutil.c
+all:hlite.bin
+
+%.o:%.c
+	$(CC) $(CFLAGS) -c $< 	-o $@
+
+
+%.bin: %.o $(LIBS)
+	$(LD) $@ $< $(LDLIBS
+
+#
+#lite:hlite.o hliteutil.o fcgi.o
+#	gcc -O0 -o hlite hlite.o hliteutil.o fcgi.o -lm 
+#hlite.o:hlite.c
+#	gcc -c -g -O0 lite.c
+#hliteutil.o:hliteutil.c
+#	gcc -c -g -O0 hliteutil.c
+
 
 clean:
 	rm *.o lite
