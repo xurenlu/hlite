@@ -17,6 +17,9 @@ test.o:
 test:test.o
 	cc liteutil.o test.o -o ./test
 
+go:
+	rm *.o test ./hlite;make ;make test;./hlite -f ../etc/demo.conf
+
 
 clean:
 	rm *.o test ./hlite

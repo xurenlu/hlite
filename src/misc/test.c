@@ -96,6 +96,27 @@ int main(int argc,char ** argv){
     pr2->key=key2;
     pr2->value=val2;
 
+    hlite_keyval_pair * pir3;
+    pir3=hlite_init_keyval_pair_withkv(key2,val2);
+    printf("\nkey equals '%s':%s ?\nvalue equals '%s':%s \n",
+            key2->data,pir3->key->data,val2->data,pir3->value->data);
+
+
+    printf("\n======== test dicts =======\n");
+    hlite_dict * dict;
+    dict=hlite_list_new(4);
+    hlite_dict_set(dict,key2,val2);
+    hlite_dict_set(dict,key1,val1);
+    hlite_string * test_string;
+    test_string = hlite_dict_get(dict,key1);
+    printf("value of dict[key1]:%s\n",test_string->data);
+    test_string = hlite_dict_get(dict,key2);
+    printf("value of dict[key1]:%s\n",test_string->data);
+
+
+
+
+
     printf("\n======== test keyval pair and list\n");
     hlite_list * lista;
     lista=hlite_list_new(8);
@@ -116,7 +137,19 @@ int main(int argc,char ** argv){
         printf("[notice] the key:%s\t the value:%s\t\n",temppair->key->data,temppair->value->data);
         free(temppair);
     }
-
-   return 0;
+   
+    printf("\n======= test parse_config_file =========\n");
+    hlite_dict * conf;
+    conf=hlite_list_new(16);
+    int parsed=0;
+    parsed=hlite_parse_config_file(hlite_new_string("./../etc/demo.conf"), conf);
+    printf("length:%d\n",conf->pos);
+    for(x=0;x<conf->pos;x++){
+        temppair=conf->p[x];
+        assert(temppair);
+        printf("[notice] the key:%s\t the value:%s\t\n",temppair->key->data,temppair->value->data);
+    }
+   
+    return 0;
 }
 

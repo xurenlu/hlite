@@ -33,6 +33,13 @@ hlite_string *  hlite_new_string(char * p){
     return str;
 }
 
+/**
+ * free the string memory
+ * */
+void hlite_string_free(hlite_string * str){
+    free(str->data);
+    free(str);
+}
 
 /**
  * generate new LIST */
@@ -193,66 +200,109 @@ hlite_keyval_pair * hlite_init_keyval_pair(){
     return kvpair;
 
 }
+/**
+ * set the key and value of a key-value pair ;
+ * */
+int hlite_set_keyval_pair(hlite_keyval_pair * kvpair,hlite_string * key,hlite_string * val){
+    kvpair->key=key;
+    kvpair->value=val;
+    return 1;
+}
+/**
+ * init a key-value-pair with specificed key and value 
+ * */
+hlite_keyval_pair * hlite_init_keyval_pair_withkv(hlite_string * key,hlite_string * val){
+    int ret=-1;
+    hlite_keyval_pair * kvpair;
+    kvpair=hlite_init_keyval_pair();
+    if(!kvpair) return NULL;
+    ret=hlite_set_keyval_pair(kvpair,key,val);
+    if(ret<0)
+        return NULL;
+    else
+        return kvpair;
+}
 
+
+/**
+ * free the memory of the key-value-pair
+ * It didn't release the memory of the key and value;
+ * */
 void hlite_free_keyval_pair(hlite_keyval_pair * kvpair){
-
+    free(kvpair);
 }
 
-int maink(int argc,char ** argv){
-    /**
-    hlite_string * p;
-    p=hlite_init_string();
-    hlite_fill_string(p,"hello");
-    printf("string len:%d,string:%s\n",p->len,p->data);
-    printf("\n\n");
-    hlite_list * list;
-    list= hlite_list_new (6);
-    char * str1;
-    char * str2;
-    str1=malloc(sizeof(char)*6);
-    str2=malloc(sizeof(char)*6);
-    memcpy(str1,"hello",6);
-    memcpy(str2,"world",6);
-    hlite_list_append(list,str1);
-    hlite_list_append(list,str2);
 
-
-    printf("%d\n",str1);
-    printf("%d",str2);
-
+/**
+ * set the value of specificed key of a dict.
+ * */
+void hlite_dict_set(hlite_dict * dict,hlite_string * key,hlite_string * val){
+    hlite_keyval_pair * pair;
     int i=0;
-    for(;i<list->pos;i++){
-        printf("%s\n",(char * )list->p[i]);
+    for(;i<dict->pos;i++){
+        pair=(hlite_keyval_pair * )dict->p[i];
+        if(!strcmp(pair->key->data,key->data))
+        {
+            pair->value=val;
+            return;
+        }
     }
-    printf("is eof:%d\n",hlite_list_is_eof(list));
-    char * j;
-    j=hlite_list_pop(list);
-    *     */
-    /**
-    int list_len,k;
-    DHERE;
-
-    hlite_string * test_str;
-    hlite_string * test_sep;
-    hlite_list * segments;
-
-    test_str=hlite_new_string("http://www.handle.com/?");
-    segments=hlite_list_new(MIDDLE);
-    test_sep=hlite_new_string("?");
-    DHERE;
-    printf("test_sep:%s\n",test_sep->data);
-    printf("test_str:%s\n",test_str->data);
-    list_len=hlite_split(test_sep,test_str,segments,1);
-    for( k=0;k<segments->pos;k++){
-        test_str=segments->p[k];
-        printf("new item:%s\n",test_str->data);
-    }
-    printf("split returns:%d\n",list_len);
-    */
-    
-
-   return 0;
+    pair=hlite_init_keyval_pair_withkv(key,val);
+    hlite_list_append(dict,pair);
 }
+
+/**
+ * return that if the dict has the specified key
+ **/
+int hlite_dict_has_key (hlite_dict * dict,hlite_string * key){
+    hlite_keyval_pair * pair;
+    int i=0;
+    for(;i<dict->pos;i++){
+        pair=(hlite_keyval_pair * )dict->p[i];
+        if(!strcmp(pair->key->data,key->data))
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+/** 
+ * return the value of specificed key of a dict 
+ * if there is no item with specified key, you would get a string "" 
+ * */
+hlite_string * hlite_dict_get(hlite_dict * dict,hlite_string * key){
+    hlite_keyval_pair * pair;
+    int i=0;
+    for(;i<dict->pos;i++){
+        pair=(hlite_keyval_pair * )dict->p[i];
+        if(!strcmp(pair->key->data,key->data))
+        {
+            return pair->value;
+        }
+    }
+    hlite_string * null_string=hlite_init_string();
+    hlite_fill_string(null_string,"");
+    return null_string;
+    
+}
+
+/**
+ * return that if the dict has the specified value
+ **/
+int hlite_dict_has_val (hlite_dict * dict,hlite_string * val){
+    hlite_keyval_pair * pair;
+    int i=0;
+    for(;i<dict->pos;i++){
+        pair=(hlite_keyval_pair * )dict->p[i];
+        if(!strcmp(pair->value->data,val->data))
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 
 
 
@@ -260,70 +310,78 @@ int maink(int argc,char ** argv){
  * parse the ini config file;
  * @configfilepath 为配置文件路径
  * */
-int hlite_parseconfigfile(char * configfilepath){
+int  hlite_parse_config_file(hlite_string *  config_file,hlite_dict * dict ){
+
+    assert(dict);
+
     int k=0;
     int len=0;
     char comment[2]="#";
+    char buf[1024],key[1024],val[1024],temp[1024];
     FILE * fd;
+    char * configfilepath=config_file->data;
+
+    hlite_dict_set(dict,hlite_new_string("root"),hlite_new_string(""));
+    hlite_dict_set(dict,hlite_new_string("port"),hlite_new_string(""));
+    hlite_dict_set(dict,hlite_new_string("hostname"),hlite_new_string(""));
+    hlite_dict_set(dict,hlite_new_string("access_log"),hlite_new_string(""));
+    hlite_dict_set(dict,hlite_new_string("error_log"),hlite_new_string(""));
+    hlite_dict_set(dict,hlite_new_string("max_clients"),hlite_new_string(""));
+    hlite_dict_set(dict,hlite_new_string("max_childs"),hlite_new_string(""));
+    hlite_dict_set(dict,hlite_new_string("run_daemon"),hlite_new_string(""));
+    hlite_dict_set(dict,hlite_new_string("cgi_pattern"),hlite_new_string(""));
+
+
     fd=fopen(configfilepath,"r");
     if(!fd){
         fprintf(stderr,"Can't open the file:%s\n",configfilepath);
     }
-    char  buf[1024];
-    char key[1024],val[1024];
-    char root[1024],host[1024],access_log[1024],error_log[1024],cgi_dir[1024];
-    int daemon_y_n,childs,clients,port;
+    int rt_value=0;
+    int line_no=0;
     while(fgets(buf,1024,fd)){
+        line_no++;
+        //ignore the comment;
         if(cbstrfwimatch(buf, comment))
             continue;
         sscanf(buf,"%1024[^=]=%s",key,val);
-
         len=strlen(val);
         if(!cbstricmp(key,"port")){
-            port=atoi(val);
+            hlite_dict_set(dict,hlite_new_string("port"),
+                    hlite_new_string(val));
         }
-        if(!cbstricmp(key,"host")){
-            //host=malloc(len+1);
-            bzero(host,len+1);
-            memcpy(host,val,len);
+        else if(!cbstricmp(key,"host")){
+            hlite_dict_set(dict,hlite_new_string("host"),hlite_new_string(val));
         }
-        if(!cbstricmp(key,"root")){
-            //root=malloc(len+1);
-            bzero(root,len+1);
-            memcpy(root,val,len);
+        else if(!cbstricmp(key,"root")){
+            hlite_dict_set(dict,hlite_new_string("root"),hlite_new_string(val));
         }
-        if(!cbstricmp(key,"daemon")){
-            if(!cbstricmp(val,"yes")){
-                daemon_y_n=1;
-            }
+        else if(!cbstricmp(key,"cgi_pattern")){
+            hlite_dict_set(dict,hlite_new_string("cgi_pattern"),hlite_new_string(val));
+        }
+        else if(!cbstricmp(key,"access_log")){
+            hlite_dict_set(dict,hlite_new_string("access_log"),hlite_new_string(val));
+        }
+        else if(!cbstricmp(key,"error_log")){
+            hlite_dict_set(dict,hlite_new_string("error_log"),hlite_new_string(val));
+        }
+        else if(!cbstricmp(key,"max_clients")){
+            hlite_dict_set(dict,hlite_new_string("max_clients"),hlite_new_string(val));
+        }
+        else if(!cbstricmp(key,"max_childs")){
+            hlite_dict_set(dict,hlite_new_string("max_childs"),hlite_new_string(val));
+        }
+        else if(!cbstricmp(key,"run_daemon")){
+            hlite_dict_set(dict,hlite_new_string("run_daemon"),hlite_new_string("y"));
             if(!cbstricmp(val,"no")){
-                daemon_y_n=0;
+                hlite_dict_set(dict,hlite_new_string("run_daemon"),hlite_new_string("n"));
             }
         }
-        if(!cbstricmp(key,"access_log")){
-            //access_log=malloc(len+1);
-            bzero(access_log,len+1);
-            memcpy(access_log,val,len);
-        }
-        if(!cbstricmp(key,"error_log")){
-            //error_log=malloc(len+1);
-            bzero(error_log,len+1);
-            memcpy(error_log,val,len);
-        }
-        if(!cbstricmp(key,"clients")){
-            clients=atoi(val);
-        }
-        if(!cbstricmp(key,"childs")){
-            childs=atoi(val);
-        }
-        if(!cbstricmp(key,"cgi_dir")){
-            //cgi_dir=malloc(len+1);
-            bzero(cgi_dir,len+1);
-            memcpy(cgi_dir,val,len);
+        else {
+            rt_value=-1;
         }
     }
     fclose(fd);
-    return 0;
+    return rt_value;
 }
 
 
