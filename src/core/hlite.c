@@ -22,10 +22,10 @@ int access_log_fd=0;
 int error_log_fd=0;
 
 void do_use_fd (int fd){
-    char buffer[128];
+    char buffer[1024];
     int len;
-    len=read(fd,buffer,128);
-    printf("readed:%d bytes\n",len);
+    len=read(fd,buffer,1024);
+    printf("readed:%d bytes %s $$\n",len,buffer);
 }
 
 void setnonblocking(int sock)
@@ -62,6 +62,7 @@ void hlite_abort(){
 
 /** Enter the Daemon model */
 int daemonize(char * access_log,char * error_log){
+    return 0;
     if (fork())
         exit(0);
     if (fork())

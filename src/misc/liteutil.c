@@ -288,6 +288,20 @@ hlite_string * hlite_dict_get(hlite_dict * dict,hlite_string * key){
 }
 
 /**
+ * get dict data using "const char * key " as key.
+ * 
+ * */
+hlite_string * hlite_dict_get_by_chars(hlite_dict * dict ,const char  * key){
+    hlite_string * return_str;
+    hlite_string * key_str;
+    return_str= hlite_init_string();
+    key_str= hlite_init_string();
+    hlite_fill_string(key_str,key);
+    return_str =  hlite_dict_get(dict,key_str);
+    hlite_string_free(key_str);
+    return return_str;
+}
+/**
  * return that if the dict has the specified value
  **/
 int hlite_dict_has_val (hlite_dict * dict,hlite_string * val){
