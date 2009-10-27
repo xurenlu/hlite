@@ -353,6 +353,7 @@ int  hlite_parse_config_file(hlite_string *  config_file,hlite_dict * dict ){
     hlite_dict_set(dict,hlite_new_string("max_childs"),hlite_new_string(""));
     hlite_dict_set(dict,hlite_new_string("run_daemon"),hlite_new_string(""));
     hlite_dict_set(dict,hlite_new_string("cgi_pattern"),hlite_new_string(""));
+    hlite_dict_set(dict,hlite_new_string("cgi_dir"),hlite_new_string(""));
 
 
     fd=fopen(configfilepath,"r");
@@ -398,6 +399,9 @@ int  hlite_parse_config_file(hlite_string *  config_file,hlite_dict * dict ){
             if(!cbstricmp(val,"no")){
                 hlite_dict_set(dict,hlite_new_string("run_daemon"),hlite_new_string("n"));
             }
+        }
+        else if(!cbstricmp(key,"cgi_dir")){
+            hlite_dict_set(dict,hlite_new_string("cgi_dir"),hlite_new_string(val));
         }
         else {
             rt_value=-1;

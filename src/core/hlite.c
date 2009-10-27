@@ -48,6 +48,7 @@ int handleresponse(FILE * sock,char * f){
     char * root;
     root_str=hlite_dict_get_by_chars(conf,"root");
     root=root_str->data;
+    hlite_string_free(root_str);
     DHERE	
     len=strlen(root)+strlen(f);
     real=malloc(len+1);
@@ -98,15 +99,15 @@ int handleresponse(FILE * sock,char * f){
     /**
      * 优先看是否需要用CGI处理
      */
-
-    /**
-    if(cbstrfwimatch(real,cgi_dir)){
+        /**
+    hlite_string * cgi_dir;
+    cgi_dir=hlite_dict_get_by_chars(conf,"cgi_dir");
+    if(cbstrfwimatch(real,cgi_dir->data)){
         printf("try to handle cgi:%s\n",real);
         handlecgi(sock,real,f);
     }
+    hlite_string_free(cgi_dir);
     */
-    DHERE	
-    DHERE	
     DHERE	
     if(S_ISREG(info.st_mode)){
         DHERE	
