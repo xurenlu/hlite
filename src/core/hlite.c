@@ -2,32 +2,365 @@
 #include <stdio.h>
 #include <sys/epoll.h>
 #include <sys/socket.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <errno.h>
-#include <sys/types.h>
 #include <unistd.h>
 #include <liteutil.h>
 #include <getopt.h>
+#include <dirent.h>
 
 #define PORT 1234
 #define MAXSOCKFD 10
 #define MAX_EVENTS 1024
-
+#define MAXBUF 8192
 
 int access_log_fd=0;
 int error_log_fd=0;
+int daemon_y_n=0;
 
-void do_use_fd (int fd){
-    char buffer[1024];
+hlite_dict * conf;
+
+
+/**
+ * generate response
+ * */
+int handleresponse(FILE * sock,char * f){
+    DHERE	
+    if(daemon_y_n){
+        char * temp;
+        temp=(char *)   malloc(sizeof(char) * (strlen(f)+2));
+        bzero(temp,strlen(f)+2);
+        sprintf(temp,"%s\n",f);
+        log_access(temp);
+        free(temp);
+    }
+    DHERE	
+    struct stat info;
+    char * real;
     int len;
-    len=read(fd,buffer,1024);
-    printf("readed:%d bytes %s $$\n",len,buffer);
+    hlite_string * root_str;
+    char * root;
+    root_str=hlite_dict_get_by_chars(conf,"root");
+    root=root_str->data;
+    DHERE	
+    len=strlen(root)+strlen(f);
+    real=malloc(len+1);
+    bzero(real,len+1);
+    DHERE	
+    if(cbstricmp(f,"HTTP/1.1")==0){
+        sprintf(real,"%s/",root);
+    }
+    else
+    {
+        sprintf(real,"%s%s",root,f);
+    }
+    DHERE	
+    cburldecode(real,strlen(real));
+    char * orig=malloc(sizeof(char)*strlen(real)+1);
+    DHERE	
+    bzero(orig,strlen(real)+1);
+    strcpy(orig,real);
+    DHERE	
+    //目前路径还包含有?号,应该把问号前的部分取出来;
+    char * delim="?";
+    DHERE	
+    char * path =strtok(real,delim);
+    DHERE	
+    char * query=malloc(sizeof(char)*6*1024);
+    DHERE	
+    bzero(query,strlen(real));
+    DHERE	
+    if(strlen(path)<strlen(orig)){
+        DHERE	
+        memcpy(query,orig+strlen(path)+1,strlen(orig)-strlen(path)-1);
+    }
+    DHERE	
+    //printf("request file :%s\n",real);
+    log_access(real);
+    DHERE	
+    int stat_result;
+    if( (stat_result=stat(real,&info))==-1 ){
+        fprintf(sock,"HTTP/1.1 200 OK\r\nServer: litehttpd-1.0.0\r\nConnection: close\r\n\r\n<html><head><title>lighthttpd-1.0.0 default page</title></head><body>404 forbiden</body></html>");
+        fprintf(sock,"hello:%d\n",stat_result);
+        DHERE
+        free(real);
+        free(orig);
+        free(query);
+        return 0;
+    }
+    DHERE	
+    /**
+     * 优先看是否需要用CGI处理
+     */
+
+    /**
+    if(cbstrfwimatch(real,cgi_dir)){
+        printf("try to handle cgi:%s\n",real);
+        handlecgi(sock,real,f);
+    }
+    */
+    DHERE	
+    DHERE	
+    DHERE	
+    if(S_ISREG(info.st_mode)){
+        DHERE	
+        if(cbstrbwmatch(real,".cgi")){
+            //printf("try to handle cgi:%s\n",real);
+            DHERE	
+            int pid;
+            switch(pid=fork()){
+                case -1:
+                    DHERE	
+                    if (!daemon_y_n) {
+                        DHERE	
+                        prterrmsg("fork error while handle cgi process;");
+                    } else {
+                        DHERE	
+                        wrterrmsg("fork error while handle cgi process;");
+                    }
+                    break;
+                case 0:
+                    // child process
+
+                    //handlecgi(sock,real,orig,query);
+                        DHERE	
+                    break;
+                default :
+                        DHERE	
+                    free(real);
+    DHERE	
+                    free(query);
+    DHERE	
+                    free(orig);
+    DHERE	
+                    return 0;
+            }
+        }
+        else{
+            handlestaticfile(sock,real,orig);
+        }
+    }
+    else if (S_ISDIR(info.st_mode)){
+        DHERE	
+        handlestaticdir(sock,real,orig);
+    }
+    DHERE	
+    free(real);
+    DHERE	
+    free(query);
+    DHERE	
+    free(orig);
 }
 
+
+int handlestaticfile(FILE * sock,char * real,char * f){
+    int len,ret,sockfd;
+    sockfd=fileno(sock);
+    len=ret=0;
+    char * p=NULL;
+    int fd=0;
+    errno=0;
+    fd=open(real,O_RDONLY);
+    if(!fd){
+        fprintf(stderr,"file reading error:%s\n",real);
+		hlite_abort();
+    }
+    len=lseek(fd,0,SEEK_END);
+    p=(char *)malloc(len+1);
+    bzero(p,len+1);
+    lseek(fd,0,SEEK_SET);
+    ret=read(fd,p,len);
+    close(fd);
+
+
+    /**
+ *  handle the content-type:
+ *  */
+    char * buf;
+
+    if(cbstrbwmatch(real,".gif")){
+        buf="image/gif";
+    }
+    if(cbstrbwmatch(real,".png")){buf="image/png";}
+    if(cbstrbwmatch(real,".bmp")){buf="image/bmp";}
+    if(cbstrbwmatch(real,".jpg")){buf="image/jpg";}
+
+    if(cbstrbwmatch(real,".html")){buf="text/html";}
+    if(cbstrbwmatch(real,".htm")){buf="text/html";}
+    if(cbstrbwmatch(real,".php")){buf="text/html";}
+    if(cbstrbwmatch(real,".txt")){buf="text/html";}
+
+    if(cbstrbwmatch(real,".css")){buf="text/css";}
+    if(cbstrbwmatch(real,".js")){buf="text/javascript";}
+
+    fputs("HTTP/1.1 200 OK\r\n",sock);
+    fputs("SERVER:litehttpd-1.0.0\r\n",sock);
+    fputs("Connection: keep-alive\r\n",sock);
+    fputs("Content-type: ",sock);
+    fputs(buf,sock);
+    fputs("\r\n",sock);
+//  fputs("Content-Length:",sock);
+//  fputs(len,sock);
+    fputs("\r\n",sock);
+    //fputs(p,sock);
+    write(sockfd,p,ret);
+    //sizeof(p));
+    free(p);
+}
+int  handlestaticdir(FILE * sock,char * real,char * f){
+    DIR * dir ;
+    struct dirent *diritem;
+    struct stat info;
+    char * filename;
+    DHERE
+    int len;
+    dir=opendir(real);
+    fprintf(sock,
+            "HTTP/1.1 200 OK\r\nServer:lighttpd-1.0.0\r\nConnection: keep-alive\r\nContent-type: text/html\r\n\r\n\r\n");
+    fprintf(sock,"<ul>");
+    DHERE
+    while(TRUE){ //(diritem=readdir(dir))!=0){
+        diritem=readdir(dir);
+        if(diritem==NULL) break;
+        filename=(char * )malloc(MAXBUF+1);
+        bzero(filename,MAXBUF+1);
+        if(cbstrbwmatch(real,"/")){
+            sprintf(filename,"%s%s",real,diritem->d_name);
+        }else{
+            sprintf(filename,"%s/%s",real,diritem->d_name);
+        }
+        stat(filename,&info);
+        if(S_ISDIR(info.st_mode)){
+            fprintf(sock,"<li><a href='%s/'>%s/</a></li>",diritem->d_name,diritem->d_name);
+        }else{
+            fprintf(sock,"<li><a href='%s'>%s</a></li>",diritem->d_name,diritem->d_name);
+        }
+    DHERE
+        free(filename);
+    DHERE
+        //free(diritem);
+    }
+}
+
+
+
+
+
+
+/** callback function of epoll */
+void epoll_callback (int fd){
+    char buffer[MAXBUF];
+    int len;
+    bzero(buffer, MAXBUF);
+    DHERE
+    if ((len = recv(fd, buffer, MAXBUF, 0)) > 0) {
+        DHERE
+        FILE *ClientFP = fdopen(fd, "w");
+        if (ClientFP == NULL) {
+            if (!daemon_y_n) {
+                DHERE
+                prterrmsg("fdopen()");
+            } else {
+                DHERE
+                wrterrmsg("fdopen()");
+            }
+        } else {
+            DHERE
+            char Req[1024];
+            if(cbstrfwimatch(buffer,"GET")){
+                DHERE
+				printf("GET command GET");
+                DHERE
+                sscanf(buffer, "GET /%s HTTP", Req);
+            }
+            else if (cbstrfwimatch(buffer,"POST")) {
+                DHERE
+				printf("GET command POST");
+                DHERE
+                sscanf(buffer, "POST /%s HTTP", Req);
+            }
+            else {
+                DHERE
+				printf("GET command UNKOWN");
+                // to do.
+            }
+            DHERE
+            bzero(buffer, MAXBUF);
+            DHERE
+            handleresponse(ClientFP, Req);
+            DHERE
+            fclose(ClientFP);
+        }
+    }
+}
+
+
+/**
+* @param str 需要解码的url字符串
+* @param len 需要解码的url的长度
+* @return int 返回解码后的url长度
+*/
+int cburldecode(char *str, int len)
+{
+        char *dest = str;
+        char *data = str;
+
+        int value;
+        int c;
+
+        while (len--) {
+                if (*data == '+') {
+                        *dest = ' ';
+                }
+                else if (*data == '%' && len >= 2 && isxdigit((int) *(data + 1))
+  && isxdigit((int) *(data + 2)))
+                {
+
+                        c = ((unsigned char *)(data+1))[0];
+                        if (isupper(c))
+                                c = tolower(c);
+                        value = (c >= '0' && c <= '9' ? c - '0' : c - 'a' + 10) * 16;
+                        c = ((unsigned char *)(data+1))[1];
+                        if (isupper(c))
+                                c = tolower(c);
+                                value += c >= '0' && c <= '9' ? c - '0' : c - 'a' + 10;
+
+                        *dest = (char)value ;
+                        data += 2;
+                        len -= 2;
+                } else {
+                        *dest = *data;
+                }
+                data++;
+                dest++;
+        }
+        *dest = '\0';
+        return dest - str;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/**
+ * 设置为非阴塞模式
+ * setting to non-blocking mode
+ * */
 void setnonblocking(int sock)
 {
     int opts;
@@ -49,24 +382,30 @@ void setnonblocking(int sock)
 /**
  * usage :
  * */
-void usage(){
+void usage() {
     printf("    Hlite :a simple httpd;\n\n");
     printf("\nUsage: conf -f file.conf\n");
     printf("Author renlu.xu<helloasp@hotmail.com>\n");
     printf("               <xurenlu@gmail.com>\n");
     printf("Version:");printf("%s\n",VERSION);printf("\n");
 }
+
+/**
+ * just exit.
+ * */
 void hlite_abort(){
     exit(0);
 }
 
 /** Enter the Daemon model */
 int daemonize(char * access_log,char * error_log){
+    /**
     return 0;
     if (fork())
         exit(0);
     if (fork())
         exit(0);
+        */
     access_log_fd=fopen(access_log,"a+");
     if(!access_log_fd){
         fprintf(stderr,"ERROR:Can't Write Access Log file,Terminating...\n");
@@ -97,7 +436,6 @@ int main(int argc,void ** argv)
     hlite_string * str_buf2;
     hlite_string * access_log;
     hlite_string * error_log;
-    hlite_dict * conf;
 
     int c;
     while((c = getopt (argc, argv, "hf:")) != -1)
@@ -156,7 +494,12 @@ int main(int argc,void ** argv)
     }
     bzero(&addr,sizeof(addr));
     addr.sin_family =AF_INET;
-    addr.sin_port = htons(PORT);
+    int port;
+    hlite_string * port_str=hlite_init_string();
+    port_str=hlite_dict_get_by_chars(conf,"port");
+    port=atoi(port_str->data);
+    hlite_string_free(port_str);
+    addr.sin_port = htons(port);
     addr.sin_addr.s_addr = htonl(INADDR_ANY);
     if(bind(sockfd,&addr,sizeof(addr))<0){
         perror("connect");
@@ -212,8 +555,8 @@ int main(int argc,void ** argv)
                     exit(3);
                 }
             } else {
-                do_use_fd(events[n].data.fd);
-
+                epoll_callback(events[n].data.fd);
+                DHERE
                 ev.events = EPOLLIN | EPOLLET;
                 ev.data.fd = events[n].data.fd;
                 epoll_ctl(epollfd, EPOLL_CTL_DEL, events[n].data.fd, &ev);

@@ -3,6 +3,15 @@
 #include "liteutil.h"
 #include "stdio.h"
 #include <assert.h>
+
+char e404[]="<h1>404 Error</h1><hr><p>File not found!</p>";
+char e403[]="<h1>403 Error</h1><hr><p>Fobidden!</p>";
+char e50x[]="<h1>500 Error</h1><hr><p>Internel Error!</p>";
+
+
+
+//
+//
 /**
  * 初始化一个字符串结构,指定设定为空,长度为0;
  **/
