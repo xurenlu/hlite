@@ -29,9 +29,9 @@ run:
 	./hlite -f ../etc/demo.conf
 
 val:
-	valgrind -v --tool=memcheck  --show-reachable=yes --leak-check=full ./hlite -f ../etc/demo.conf  
+	valgrind -v --track-origins=yes --tool=memcheck  --show-reachable=yes --leak-check=full ./hlite -f ../etc/demo.conf  
 
 curl:
-	curl -i http://localhost:1969/
+	curl -i http://localhost:1970/
 .PHONY:clean
 

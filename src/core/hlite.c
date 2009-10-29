@@ -53,8 +53,8 @@ int handleresponse(FILE * sock,char * f){
         hlite_abort();
     }
     DHERE	
-    printf("root_str->data:%d\n",strlen(root_str->data));
-    printf("f:%d\n",strlen(f));
+    //printf("root_str->data:%d\n",strlen(root_str->data));
+    //printf("f:%d\n",strlen(f));
     len=strlen(root_str->data)+strlen(f);
     DHERE	
     real=malloc(len+1);
@@ -99,7 +99,7 @@ int handleresponse(FILE * sock,char * f){
         hlite_free(real);
         hlite_free(orig);
         hlite_free(query);
-        hlite_string_free(root_str);
+        //hlite_string_free(root_str);
         return 0;
     }
     DHERE	
@@ -290,19 +290,19 @@ void epoll_callback (int fd){
             char Req[1024];
             if(cbstrfwimatch(buffer,"GET")){
                 DHERE
-				printf("GET command GET");
+				//printf("GET command GET");
                 DHERE
                 sscanf(buffer, "GET /%s HTTP", Req);
             }
             else if (cbstrfwimatch(buffer,"POST")) {
                 DHERE
-				printf("GET command POST");
+				//printf("GET command POST");
                 DHERE
                 sscanf(buffer, "POST /%s HTTP", Req);
             }
             else {
                 DHERE
-				printf("GET command UNKOWN");
+				//printf("GET command UNKOWN");
                 // to do.
             }
             DHERE
