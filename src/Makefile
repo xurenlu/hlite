@@ -1,18 +1,19 @@
+CFLAGS = "-g "
 all:hlite
 
 hlite:hlite.o fcgi.o liteutil.o
 
 fcgi.o:
-	gcc  -c ./mod/fcgi.c  -I./include/ -O0
+	gcc  -g -c ./mod/fcgi.c  -I./include/ -O0
 
 liteutil.o:
-	gcc  -c ./misc/liteutil.c -I../include/ -I./include/ -O0
+	gcc  -g -c ./misc/liteutil.c -I../include/ -I./include/ -O0
 
 hlite.o:
-	gcc  -c ./core/hlite.c -I./include/ -O0
+	gcc  -g -c ./core/hlite.c -I./include/ -O0
 
 test.o:
-	gcc -c ./misc/test.c -I./include/  -O0
+	gcc -g -c ./misc/test.c -I./include/  -O0
 
 test:test.o
 	cc liteutil.o test.o -o ./test -O0
@@ -26,3 +27,11 @@ clean:
 
 run:
 	./hlite -f ../etc/demo.conf
+
+val:
+	valgrind -v --tool=memcheck  --show-reachable=yes --leak-check=full ./hlite -f ../etc/demo.conf  
+
+curl:
+	curl -i http://localhost:1969/
+.PHONY:clean
+

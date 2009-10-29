@@ -9,6 +9,17 @@ char e403[]="<h1>403 Error</h1><hr><p>Fobidden!</p>";
 char e50x[]="<h1>500 Error</h1><hr><p>Internel Error!</p>";
 
 
+/**
+ * free memory
+ * */
+void hlite_free(void * ptr){
+    if(ptr==NULL){
+    }
+    else{
+        free(ptr);
+        ptr=NULL;
+    }
+}
 
 //
 //
@@ -46,8 +57,8 @@ hlite_string *  hlite_new_string(char * p){
  * free the string memory
  * */
 void hlite_string_free(hlite_string * str){
-    free(str->data);
-    free(str);
+    hlite_free(str->data);
+    hlite_free(str);
 }
 
 /**
@@ -124,7 +135,7 @@ void *  hlite_list_pop(hlite_list  * list){
  * 释放list资源
  */
 void * hlite_list_free(hlite_list * list){
-    free(list);
+    hlite_free(list);
 }
 /**
  * split a string to list
@@ -238,7 +249,7 @@ hlite_keyval_pair * hlite_init_keyval_pair_withkv(hlite_string * key,hlite_strin
  * It didn't release the memory of the key and value;
  * */
 void hlite_free_keyval_pair(hlite_keyval_pair * kvpair){
-    free(kvpair);
+    hlite_free(kvpair);
 }
 
 

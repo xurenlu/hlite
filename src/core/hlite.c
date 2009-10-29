@@ -38,28 +38,34 @@ int handleresponse(FILE * sock,char * f){
         bzero(temp,strlen(f)+2);
         sprintf(temp,"%s\n",f);
         log_access(temp);
-        free(temp);
+        hlite_free(temp);
     }
     DHERE	
     struct stat info;
     char * real;
     int len;
     hlite_string * root_str;
-    char * root;
+    char * query;
+    DHERE
     root_str=hlite_dict_get_by_chars(conf,"root");
-    root=root_str->data;
-    hlite_string_free(root_str);
+    if(root_str==NULL){
+        prterrmsg("root not defined!");
+        hlite_abort();
+    }
     DHERE	
-    len=strlen(root)+strlen(f);
+    printf("root_str->data:%d\n",strlen(root_str->data));
+    printf("f:%d\n",strlen(f));
+    len=strlen(root_str->data)+strlen(f);
+    DHERE	
     real=malloc(len+1);
     bzero(real,len+1);
     DHERE	
     if(cbstricmp(f,"HTTP/1.1")==0){
-        sprintf(real,"%s/",root);
+        sprintf(real,"%s/",root_str->data);
     }
     else
     {
-        sprintf(real,"%s%s",root,f);
+        sprintf(real,"%s%s",root_str->data,f);
     }
     DHERE	
     cburldecode(real,strlen(real));
@@ -73,7 +79,7 @@ int handleresponse(FILE * sock,char * f){
     DHERE	
     char * path =strtok(real,delim);
     DHERE	
-    char * query=malloc(sizeof(char)*6*1024);
+    query=malloc(sizeof(char)*8192);
     DHERE	
     bzero(query,strlen(real));
     DHERE	
@@ -90,9 +96,10 @@ int handleresponse(FILE * sock,char * f){
         fprintf(sock,"HTTP/1.1 200 OK\r\nServer: litehttpd-1.0.0\r\nConnection: close\r\n\r\n<html><head><title>lighthttpd-1.0.0 default page</title></head><body>404 forbiden</body></html>");
         fprintf(sock,"hello:%d\n",stat_result);
         DHERE
-        free(real);
-        free(orig);
-        free(query);
+        hlite_free(real);
+        hlite_free(orig);
+        hlite_free(query);
+        hlite_string_free(root_str);
         return 0;
     }
     DHERE	
@@ -134,15 +141,19 @@ int handleresponse(FILE * sock,char * f){
                     break;
                 default :
                         DHERE	
-                    free(real);
+    /**
+                    hlite_free(real);
     DHERE	
-                    free(query);
+                    hlite_free(query);
     DHERE	
-                    free(orig);
+                    hlite_free(orig);
     DHERE	
+                    hlite_string_free(root_str);
                     return 0;
+    */
             }
         }
+
         else{
             handlestaticfile(sock,real,orig);
         }
@@ -152,11 +163,13 @@ int handleresponse(FILE * sock,char * f){
         handlestaticdir(sock,real,orig);
     }
     DHERE	
-    free(real);
+    hlite_free(real);
     DHERE	
-    free(query);
+    hlite_free(query);
     DHERE	
-    free(orig);
+    hlite_free(orig);
+    DHERE	
+    //hlite_string_free(root_str);
 }
 
 
@@ -212,7 +225,7 @@ int handlestaticfile(FILE * sock,char * real,char * f){
     //fputs(p,sock);
     write(sockfd,p,ret);
     //sizeof(p));
-    free(p);
+    hlite_free(p);
 }
 int  handlestaticdir(FILE * sock,char * real,char * f){
     DIR * dir ;
@@ -243,7 +256,7 @@ int  handlestaticdir(FILE * sock,char * real,char * f){
             fprintf(sock,"<li><a href='%s'>%s</a></li>",diritem->d_name,diritem->d_name);
         }
     DHERE
-        free(filename);
+        hlite_free(filename);
     DHERE
         //free(diritem);
     }
@@ -256,6 +269,7 @@ int  handlestaticdir(FILE * sock,char * real,char * f){
 
 /** callback function of epoll */
 void epoll_callback (int fd){
+    //printf("got msg from:child process:%d\n",getpid());
     char buffer[MAXBUF];
     int len;
     bzero(buffer, MAXBUF);
@@ -491,7 +505,7 @@ int main(int argc,void ** argv)
     
     if ((sockfd = socket(AF_INET,SOCK_STREAM,0))<0){
         perror("socket");
-        exit(1);
+        hlite_abort(1);
     }
     bzero(&addr,sizeof(addr));
     addr.sin_family =AF_INET;
@@ -516,8 +530,6 @@ int main(int argc,void ** argv)
 
    
    int  conn_sock, nfds, epollfd,n;
-
-
     epollfd = epoll_create(10);
     if (epollfd == -1) {
         perror("epoll_create");
