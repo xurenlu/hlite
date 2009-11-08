@@ -47,7 +47,7 @@ int hlite_fill_string(hlite_string * p,const char * data){
 /**
  * generate hlite_string struct from a char point;
  */
-hlite_string *  hlite_new_string(char * p){
+hlite_string *  hlite_new_string(const char * p){
     hlite_string * str=hlite_init_string();
     hlite_fill_string(str,p);
     return str;

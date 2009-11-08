@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <unistd.h>
+#include <hlite.h>
 #include <liteutil.h>
 #include <getopt.h>
 #include <dirent.h>
@@ -28,21 +29,21 @@ hlite_dict * conf;
 
 void clean_global_mem(){
     if(access_log_fd)
-    fclose(access_log_fd);
+    close(access_log_fd);
     if(error_log_fd)
-    fclose(error_log_fd);
+    close(error_log_fd);
     hlite_dict_free(conf);
 
 }
 /**
  * generate response
  * */
-int handleresponse(FILE * sock,char * f){
+int handleresponse(FILE * sock,const char * f){
     DHERE	
     if(daemon_y_n){
         char * temp;
-        temp=(char *)   malloc(sizeof(char) * (strlen(f)+2));
-        bzero(temp,strlen(f)+2);
+        temp=(char *)   malloc(sizeof(char) * (strlen((const char * )f)+2));
+        bzero((void * )temp,(size_t)strlen((const char *)f)+2);
         sprintf(temp,"%s\n",f);
         log_access(temp);
         hlite_free(temp);
@@ -54,7 +55,7 @@ int handleresponse(FILE * sock,char * f){
     hlite_string * root_str;
     char * query;
     DHERE
-    root_str=hlite_dict_get_by_chars(conf,"root");
+    root_str=hlite_dict_get_by_chars((hlite_dict *)conf,(const char *) "root");
     if(root_str==NULL){
         prterrmsg("root not defined!");
         hlite_abort();
@@ -463,7 +464,7 @@ int main(int argc,void ** argv)
     hlite_string * error_log;
 
     int c;
-    while((c = getopt (argc, argv, "hf:")) != -1)
+    while((c = getopt (argc,(char * const *) argv, "hf:")) != -1)
     switch(c){
         case 'h':
             usage();
@@ -509,7 +510,7 @@ int main(int argc,void ** argv)
     if ((sockfd = socket(AF_INET,SOCK_STREAM,0))<0){
         DHERE
         wrterrmsg("create socket failed:");
-        hlite_abort(1);
+        hlite_abort();
     }
     DHERE
     bzero(&addr,sizeof(addr));
@@ -526,7 +527,7 @@ int main(int argc,void ** argv)
     addr.sin_port = htons(port);
     addr.sin_addr.s_addr = htonl(INADDR_ANY);
     DHERE
-    if(bind(sockfd,&addr,sizeof(addr))<0){
+    if(bind(sockfd,(const struct sockaddr *)&addr,sizeof(addr))<0){
         perror("connect");
         exit(1);
     }
@@ -599,7 +600,7 @@ int main(int argc,void ** argv)
         for(fd=0;fd<MAXSOCKFD;fd++)
             if(FD_ISSET(fd,&readfds)){
                 if(sockfd ==fd ){
-                    if((newsockfd = accept (sockfd,&addr,&addr_len))<0)
+                    if((newsockfd = accept (sockfd,(struct sockaddr *) &addr,(socklen_t *) &addr_len))<0)
                         perror("accept");
                     write(newsockfd,msg,sizeof(msg));
                     is_connected[newsockfd] =1;
