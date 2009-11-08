@@ -1,3 +1,4 @@
+#include "stdio.h"
 #define SMALL 16
 #define MIDDLE 256
 #define BUFSIZE 8192 //8K
@@ -57,3 +58,9 @@ struct hlite_list_t {
 };
 typedef struct hlite_list_t hlite_list;
 typedef struct hlite_list_t hlite_dict;
+
+struct response_arg_t {
+    FILE * file;
+    const char * fpath;
+} ;
+typedef struct response_arg_t response_arg;

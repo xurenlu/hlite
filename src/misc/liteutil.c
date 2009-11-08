@@ -315,7 +315,6 @@ hlite_string * hlite_dict_get(hlite_dict * dict,hlite_string * key){
     int i=0;
     for(;i<dict->pos;i++){
         pair=(hlite_keyval_pair * )dict->p[i];
-        printf("get key var:%s\n",pair->key->data);
         if(!strcmp(pair->key->data,key->data))
         {
             return pair->value;

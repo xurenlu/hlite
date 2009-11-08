@@ -1,6 +1,7 @@
-CFLAGS = -g -O0 -I./include/
+CFLAGS = -g -O0 -I./include/ -lpthread
 RM=rm -f 
 BIN="./hlite" 
+LDFLAGS=" -lpthread "
 #OBJECTS="./core/hlite.o ./misc/fcgi.o ./misc/liteutil.o"
 vpath %.h ./include
 vpath %.c core
@@ -12,6 +13,10 @@ all:hlite
 
 #hlite:$(OBJECTS)
 hlite:hlite.o fcgi.o liteutil.o
+	cc -lpthread -o hlite fcgi.o liteutil.o hlite.o
+
+%.o:%.c %.h
+
 
 test:test.o
 	cc liteutil.o test.o -o ./test -O0
@@ -26,10 +31,4 @@ val:
 curl:
 	curl -i http://localhost:1970/
 .PHONY:clean
-include $(sources:.c=.d)
-%.d: %.c
-	set -e; rm -f $@; \
-	$(CC) -MM $(CPPFLAGS) $< > $@.$$$$; 
-	#sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' < $@.$$$$ > $@; \
-	#rm -f $@.$$$$
 

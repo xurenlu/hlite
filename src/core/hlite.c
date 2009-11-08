@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <sys/epoll.h>
 #include <sys/socket.h>
@@ -38,7 +39,11 @@ void clean_global_mem(){
 /**
  * generate response
  * */
-int handleresponse(FILE * sock,const char * f){
+void handleresponse(void * resp){
+    FILE * sock;
+    const char * f;
+    sock=((response_arg * )resp)->file;
+    f=((response_arg *)resp)->fpath;
     DHERE	
     if(daemon_y_n){
         char * temp;
@@ -109,8 +114,8 @@ int handleresponse(FILE * sock,const char * f){
         hlite_free(real);
         hlite_free(orig);
         hlite_free(query);
+        fclose(sock);
         //hlite_string_free(root_str);
-        return 0;
     }
     DHERE	
     /**
@@ -179,6 +184,7 @@ int handleresponse(FILE * sock,const char * f){
     DHERE	
     hlite_free(orig);
     DHERE	
+    fclose(sock);
     //hlite_string_free(root_str);
 }
 
@@ -283,6 +289,8 @@ void epoll_callback (int fd){
     //printf("got msg from:child process:%d\n",getpid());
     char buffer[MAXBUF];
     int len;
+    response_arg * resp;
+    pthread_t thread_t;
     bzero(buffer, MAXBUF);
     DHERE
     if ((len = recv(fd, buffer, MAXBUF, 0)) > 0) {
@@ -319,9 +327,15 @@ void epoll_callback (int fd){
             DHERE
             bzero(buffer, MAXBUF);
             DHERE
-            handleresponse(ClientFP, Req);
+            resp=malloc(sizeof(response_arg * ));
+            resp->file=ClientFP;
+            resp->fpath=Req;
             DHERE
-            fclose(ClientFP);
+            int iret1 = pthread_create(&thread_t, NULL, handleresponse, (void *) resp);
+            pthread_join(thread_t,NULL);
+            hlite_free(resp);
+            //handleresponse(ClientFP, Req);
+            DHERE
         }
     }
 }
