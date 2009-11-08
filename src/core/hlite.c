@@ -94,7 +94,9 @@ int handleresponse(FILE * sock,char * f){
     int stat_result;
     if( (stat_result=stat(real,&info))==-1 ){
         fprintf(sock,"HTTP/1.1 200 OK\r\nServer: litehttpd-1.0.0\r\nConnection: close\r\n\r\n<html><head><title>lighthttpd-1.0.0 default page</title></head><body>404 forbiden</body></html>");
-        fprintf(sock,"hello:%d\n",stat_result);
+        //fprintf(sock,"hello:%s,%d\n",real,stat_result);
+        //wrterrmsg("Not found:");
+        //wrterrmsg(real);
         DHERE
         hlite_free(real);
         hlite_free(orig);
@@ -196,7 +198,7 @@ int handlestaticfile(FILE * sock,char * real,char * f){
     /**
  *  handle the content-type:
  *  */
-    char * buf;
+    char * buf="text/html";
 
     if(cbstrbwmatch(real,".gif")){
         buf="image/gif";
@@ -212,7 +214,7 @@ int handlestaticfile(FILE * sock,char * real,char * f){
 
     if(cbstrbwmatch(real,".css")){buf="text/css";}
     if(cbstrbwmatch(real,".js")){buf="text/javascript";}
-
+    
     fputs("HTTP/1.1 200 OK\r\n",sock);
     fputs("SERVER:litehttpd-1.0.0\r\n",sock);
     fputs("Connection: keep-alive\r\n",sock);

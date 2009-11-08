@@ -3,6 +3,7 @@
 #define BUFSIZE 8192 //8K
 #define BIG 65536
 #define HUGE 4194304 //65536*64;
+
 //#define DHERE printf("debug:%s,%d\n",__FILE__,__LINE__);
 //#define DHERE fprintf(stderr,"debug:%s,%d\n",__FILE__,__LINE__);
 #define DHERE ;
@@ -64,7 +65,3 @@ struct hlite_list_t {
 };
 typedef struct hlite_list_t hlite_list;
 typedef struct hlite_list_t hlite_dict;
-
-
-
-
