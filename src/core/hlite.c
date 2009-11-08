@@ -26,7 +26,14 @@ int daemon_y_n=0;
 
 hlite_dict * conf;
 
+void clean_global_mem(){
+    if(access_log_fd)
+    fclose(access_log_fd);
+    if(error_log_fd)
+    fclose(error_log_fd);
+    hlite_dict_free(conf);
 
+}
 /**
  * generate response
  * */
@@ -260,8 +267,9 @@ int  handlestaticdir(FILE * sock,char * real,char * f){
     DHERE
         hlite_free(filename);
     DHERE
-        //free(diritem);
+        //hacked here.to fix mem bugs;
     }
+        free(dir);
 }
 
 
@@ -482,42 +490,42 @@ int main(int argc,void ** argv)
     }
     conf=hlite_list_new(16);
     hlite_parse_config_file(configfile,conf);
-
-    str_buf1=hlite_new_string("run_daemon");
     DHERE
-    str_buf2=hlite_dict_get(conf,str_buf1);
+    str_buf2    =hlite_dict_get_by_chars(conf,"run_daemon");
     DHERE
-    hlite_string_free(str_buf1);
+    access_log  =hlite_dict_get_by_chars(conf,"access_log");
     DHERE
-    str_buf1=hlite_new_string("access_log");
+    error_log   =hlite_dict_get_by_chars(conf,"error_log");
     DHERE
-    access_log=hlite_dict_get(conf,str_buf1);
-    DHERE
-    hlite_string_free(str_buf1);
-    DHERE
-    str_buf1=hlite_new_string("error_log");
-    DHERE
-    error_log=hlite_dict_get(conf,str_buf1);
-    DHERE
-    hlite_string_free(str_buf1);
-
-    if(!strcmp(str_buf2->data,"y")){
+        if(str_buf2==NULL){
+            DHERE
+            printf("Oh,str_buf2 is null\n");
+        }
+    if(( str_buf2!=NULL) && (!strcmp(str_buf2->data,"y"))){
+        DHERE
         daemonize(access_log->data,error_log->data);
     }
-    
+    DHERE
     if ((sockfd = socket(AF_INET,SOCK_STREAM,0))<0){
-        perror("socket");
+        DHERE
+        wrterrmsg("create socket failed:");
         hlite_abort(1);
     }
+    DHERE
     bzero(&addr,sizeof(addr));
     addr.sin_family =AF_INET;
     int port;
-    hlite_string * port_str=hlite_init_string();
+    DHERE
+    hlite_string * port_str;
+    DHERE
     port_str=hlite_dict_get_by_chars(conf,"port");
+    DHERE
     port=atoi(port_str->data);
+    DHERE
     hlite_string_free(port_str);
     addr.sin_port = htons(port);
     addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    DHERE
     if(bind(sockfd,&addr,sizeof(addr))<0){
         perror("connect");
         exit(1);
@@ -527,28 +535,27 @@ int main(int argc,void ** argv)
         exit(1);
     }
 
-
-
-
-   
-   int  conn_sock, nfds, epollfd,n;
+    DHERE 
+    int  conn_sock, nfds, epollfd,n;
     epollfd = epoll_create(10);
     if (epollfd == -1) {
         perror("epoll_create");
         exit(3);
     }
 
+    DHERE 
     ev.events = EPOLLIN;
     ev.data.fd = sockfd;
     if (epoll_ctl(epollfd, EPOLL_CTL_ADD, sockfd, &ev) == -1) {
-        perror("epoll_ctl: sockfd");
+        wrterrmsg("epoll_ctl: epoll_ctl ADD failed.\n");
         exit(3);
     }
-
+    DHERE 
     for (;;) {
+        DHERE
         nfds = epoll_wait(epollfd, events, MAX_EVENTS, -1);
         if (nfds == -1) {
-            perror("epoll_pwait");
+            prterrmsg("epoll_pwait");
             exit(3);
         }
 

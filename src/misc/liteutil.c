@@ -224,8 +224,16 @@ hlite_keyval_pair * hlite_init_keyval_pair(){
  * set the key and value of a key-value pair ;
  * */
 int hlite_set_keyval_pair(hlite_keyval_pair * kvpair,hlite_string * key,hlite_string * val){
-    kvpair->key=key;
-    kvpair->value=val;
+    hlite_string * keystr;
+    hlite_string * valstr;
+
+    keystr=hlite_init_string();
+    valstr=hlite_init_string();
+
+    hlite_fill_string(keystr,key->data);
+    hlite_fill_string(valstr,val->data);
+    kvpair->key=keystr;
+    kvpair->value=valstr;
     return 1;
 }
 /**
@@ -272,6 +280,17 @@ void hlite_dict_set(hlite_dict * dict,hlite_string * key,hlite_string * val){
 }
 
 /**
+ * set the value of specificed key of a dict,parameters are chars 
+ * */
+void hlite_dict_set_by_chars(hlite_dict * dict,char * key,char * val){
+    hlite_string * keystring;
+    hlite_string * valstring;
+    keystring=hlite_new_string(key);
+    valstring=hlite_new_string(val);
+    hlite_dict_set(dict,keystring,valstring);
+    hlite_string_free(keystring);
+}
+/**
  * return that if the dict has the specified key
  **/
 int hlite_dict_has_key (hlite_dict * dict,hlite_string * key){
@@ -296,15 +315,13 @@ hlite_string * hlite_dict_get(hlite_dict * dict,hlite_string * key){
     int i=0;
     for(;i<dict->pos;i++){
         pair=(hlite_keyval_pair * )dict->p[i];
+        printf("get key var:%s\n",pair->key->data);
         if(!strcmp(pair->key->data,key->data))
         {
             return pair->value;
         }
     }
-    hlite_string * null_string=hlite_init_string();
-    hlite_fill_string(null_string,"");
-    return null_string;
-    
+    return NULL;
 }
 
 /**
@@ -314,7 +331,6 @@ hlite_string * hlite_dict_get(hlite_dict * dict,hlite_string * key){
 hlite_string * hlite_dict_get_by_chars(hlite_dict * dict ,const char  * key){
     hlite_string * return_str;
     hlite_string * key_str;
-    return_str= hlite_init_string();
     key_str= hlite_init_string();
     hlite_fill_string(key_str,key);
     return_str =  hlite_dict_get(dict,key_str);
@@ -337,7 +353,14 @@ int hlite_dict_has_val (hlite_dict * dict,hlite_string * val){
     return 0;
 }
 
-
+void hlite_dict_free(hlite_dict * dict){
+    hlite_keyval_pair * pair;
+    int i=0;
+    for(;i<dict->pos;i++){
+        pair=(hlite_keyval_pair * )dict->p[i];
+        hlite_free_keyval_pair(pair);
+    }
+}
 
 
 /**
@@ -355,16 +378,16 @@ int  hlite_parse_config_file(hlite_string *  config_file,hlite_dict * dict ){
     FILE * fd;
     char * configfilepath=config_file->data;
 
-    hlite_dict_set(dict,hlite_new_string("root"),hlite_new_string(""));
-    hlite_dict_set(dict,hlite_new_string("port"),hlite_new_string(""));
-    hlite_dict_set(dict,hlite_new_string("hostname"),hlite_new_string(""));
-    hlite_dict_set(dict,hlite_new_string("access_log"),hlite_new_string(""));
-    hlite_dict_set(dict,hlite_new_string("error_log"),hlite_new_string(""));
-    hlite_dict_set(dict,hlite_new_string("max_clients"),hlite_new_string(""));
-    hlite_dict_set(dict,hlite_new_string("max_childs"),hlite_new_string(""));
-    hlite_dict_set(dict,hlite_new_string("run_daemon"),hlite_new_string(""));
-    hlite_dict_set(dict,hlite_new_string("cgi_pattern"),hlite_new_string(""));
-    hlite_dict_set(dict,hlite_new_string("cgi_dir"),hlite_new_string(""));
+    hlite_dict_set_by_chars(dict,"root","");
+    hlite_dict_set_by_chars(dict,"port","");
+    hlite_dict_set_by_chars(dict,"hostname","");
+    hlite_dict_set_by_chars(dict,"access_log","");
+    hlite_dict_set_by_chars(dict,"error_log","");
+    hlite_dict_set_by_chars(dict,"max_clients","");
+    hlite_dict_set_by_chars(dict,"max_childs","");
+    hlite_dict_set_by_chars(dict,"run_daemon","");
+    hlite_dict_set_by_chars(dict,"cgi_pattern","");
+    hlite_dict_set_by_chars(dict,"cgi_dir","");
 
 
     fd=fopen(configfilepath,"r");
@@ -381,38 +404,38 @@ int  hlite_parse_config_file(hlite_string *  config_file,hlite_dict * dict ){
         sscanf(buf,"%1024[^=]=%s",key,val);
         len=strlen(val);
         if(!cbstricmp(key,"port")){
-            hlite_dict_set(dict,hlite_new_string("port"),
-                    hlite_new_string(val));
+            hlite_dict_set_by_chars(dict,"port",
+                    val);
         }
         else if(!cbstricmp(key,"host")){
-            hlite_dict_set(dict,hlite_new_string("host"),hlite_new_string(val));
+            hlite_dict_set_by_chars(dict,"host",val);
         }
         else if(!cbstricmp(key,"root")){
-            hlite_dict_set(dict,hlite_new_string("root"),hlite_new_string(val));
+            hlite_dict_set_by_chars(dict,"root",val);
         }
         else if(!cbstricmp(key,"cgi_pattern")){
-            hlite_dict_set(dict,hlite_new_string("cgi_pattern"),hlite_new_string(val));
+            hlite_dict_set_by_chars(dict,"cgi_pattern",val);
         }
         else if(!cbstricmp(key,"access_log")){
-            hlite_dict_set(dict,hlite_new_string("access_log"),hlite_new_string(val));
+            hlite_dict_set_by_chars(dict,"access_log",val);
         }
         else if(!cbstricmp(key,"error_log")){
-            hlite_dict_set(dict,hlite_new_string("error_log"),hlite_new_string(val));
+            hlite_dict_set_by_chars(dict,"error_log",val);
         }
         else if(!cbstricmp(key,"max_clients")){
-            hlite_dict_set(dict,hlite_new_string("max_clients"),hlite_new_string(val));
+            hlite_dict_set_by_chars(dict,"max_clients",val);
         }
         else if(!cbstricmp(key,"max_childs")){
-            hlite_dict_set(dict,hlite_new_string("max_childs"),hlite_new_string(val));
+            hlite_dict_set_by_chars(dict,"max_childs",val);
         }
         else if(!cbstricmp(key,"run_daemon")){
-            hlite_dict_set(dict,hlite_new_string("run_daemon"),hlite_new_string("y"));
+            hlite_dict_set_by_chars(dict,"run_daemon","y");
             if(!cbstricmp(val,"no")){
-                hlite_dict_set(dict,hlite_new_string("run_daemon"),hlite_new_string("n"));
+                hlite_dict_set_by_chars(dict,"run_daemon","n");
             }
         }
         else if(!cbstricmp(key,"cgi_dir")){
-            hlite_dict_set(dict,hlite_new_string("cgi_dir"),hlite_new_string(val));
+            hlite_dict_set_by_chars(dict,"cgi_dir",val);
         }
         else {
             rt_value=-1;
