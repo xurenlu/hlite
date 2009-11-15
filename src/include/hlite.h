@@ -1,0 +1,1 @@
+void hlite_abort();

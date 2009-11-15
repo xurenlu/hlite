@@ -60,9 +60,10 @@ typedef struct hlite_list_t hlite_list;
 typedef struct hlite_list_t hlite_dict;
 
 struct response_arg_t {
-    FILE * file;
-    const char * fpath;
+    int fd;
+    char * fpath;
     int thread_id;
+    hlite_string *root;
 } ;
 typedef struct response_arg_t response_arg;
 

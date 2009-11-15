@@ -16,12 +16,12 @@
 #include <liteutil.h>
 #include <getopt.h>
 #include <dirent.h>
+#include <signal.h>
 
-#define PORT 1234
 #define MAXSOCKFD 10
-#define MAX_EVENTS 1024
+#define MAX_EVENTS 32
 #define MAXBUF 8192
-#define MAX_THREADS 1024
+#define MAX_THREADS 32
 
 int access_log_fd=0;
 int error_log_fd=0;
@@ -40,15 +40,21 @@ void clean_global_mem(){
     hlite_dict_free(conf);
 
 }
+void sig(int signal){
+    kill(getpid(),SIGSEGV);
+}
 void removeevt(FILE * sock){
+    pthread_mutex_lock(&mutex);
+    //fprintf(stderr,"response:%d\n",__LINE__);
     int fd;
     fd=fileno(sock);
-    pthread_mutex_lock(&mutex);
     ev.events = EPOLLIN | EPOLLET;
     ev.data.fd = fd;
     epoll_ctl(epollfd, EPOLL_CTL_DEL,fd, &ev);
-    close(fd);
     fclose(sock);
+    close(fd);
+    //fprintf(stderr,"response:%d\n",__LINE__);
+    //fprintf(stderr,"fd removed:%d\n",fd);
     pthread_mutex_unlock(&mutex);
 }
 /**
@@ -56,9 +62,14 @@ void removeevt(FILE * sock){
  * */
 void handleresponse(void * resp){
     FILE * sock;
-    const char * f;
-    sock=((response_arg * )resp)->file;
+    char * f;
+    int fd;
+    fd=((response_arg * )resp)->fd;
+    sock=fdopen(fd,"w");
     f=((response_arg *)resp)->fpath;
+    hlite_string * root_str;
+    root_str = ((response_arg *)resp)->root;
+    //fprintf(stderr,"response:%d\n",__LINE__);
     DHERE	
     if(daemon_y_n){
         char * temp;
@@ -72,10 +83,8 @@ void handleresponse(void * resp){
     struct stat info;
     char * real;
     int len;
-    hlite_string * root_str;
     char * query;
     DHERE
-    root_str=hlite_dict_get_by_chars((hlite_dict *)conf,(const char *) "root");
     if(root_str==NULL){
         prterrmsg("root not defined!");
         hlite_abort();
@@ -83,6 +92,8 @@ void handleresponse(void * resp){
     DHERE	
     //printf("root_str->data:%d\n",strlen(root_str->data));
     //printf("f:%d\n",strlen(f));
+    //fprintf(stderr,"response:%d\n",__LINE__);
+    //fprintf(stderr,"root_str:%d\n",strlen(root_str->data));
     len=strlen(root_str->data)+strlen(f);
     DHERE	
     real=malloc(len+1);
@@ -107,10 +118,11 @@ void handleresponse(void * resp){
     DHERE	
     char * path =strtok(real,delim);
     DHERE	
-    query=malloc(sizeof(char)*8192);
+    query=malloc(sizeof(char)*1024);
     DHERE	
     bzero(query,strlen(real));
     DHERE	
+    //fprintf(stderr,"response:%d\n",__LINE__);
     if(strlen(path)<strlen(orig)){
         DHERE	
         memcpy(query,orig+strlen(path)+1,strlen(orig)-strlen(path)-1);
@@ -120,6 +132,7 @@ void handleresponse(void * resp){
     log_access(real);
     DHERE	
     int stat_result;
+    //fprintf(stderr,"response:%d\n",__LINE__);
     if( (stat_result=stat(real,&info))==-1 ){
         fprintf(sock,"HTTP/1.1 200 OK\r\nServer: litehttpd-1.0.0\r\nConnection: close\r\n\r\n<html><head><title>lighthttpd-1.0.0 default page</title></head><body>404 forbiden</body></html>");
         //fprintf(sock,"hello:%s,%d\n",real,stat_result);
@@ -147,6 +160,7 @@ void handleresponse(void * resp){
     hlite_string_free(cgi_dir);
     */
     DHERE	
+    //fprintf(stderr,"response:%d\n",__LINE__);
     if(S_ISREG(info.st_mode)){
         DHERE	
         if(cbstrbwmatch(real,".cgi")){
@@ -193,6 +207,7 @@ void handleresponse(void * resp){
         DHERE	
         handlestaticdir(sock,real,orig);
     }
+    //fprintf(stderr,"response:%d\n",__LINE__);
     DHERE	
     hlite_free(real);
     DHERE	
@@ -200,8 +215,8 @@ void handleresponse(void * resp){
     DHERE	
     hlite_free(orig);
     DHERE	
-        removeevt(sock);
-    //hlite_string_free(root_str);
+    removeevt(sock);
+    return ;
 }
 
 
@@ -259,19 +274,18 @@ int handlestaticfile(FILE * sock,char * real,char * f){
     //sizeof(p));
     hlite_free(p);
 }
+
+
 int  handlestaticdir(FILE * sock,char * real,char * f){
     DIR * dir ;
     struct dirent *diritem;
     struct stat info;
     char * filename;
-    DHERE
     int len;
+    //fprintf(stderr,"response:%d\n",__LINE__);
     dir=opendir(real);
-    fprintf(sock,
-            "HTTP/1.1 200 OK\r\nServer:lighttpd-1.0.0\r\nConnection: keep-alive\r\nContent-type: text/html\r\n\r\n\r\n");
-    fprintf(sock,"<ul>");
-    DHERE
-    while(TRUE){ //(diritem=readdir(dir))!=0){
+    fprintf(sock, "HTTP/1.1 200 OK\r\nServer:lighttpd-1.0.0\r\nConnection: keep-alive\r\nContent-type: text/html\r\n\r\n\r\n<ul>");
+    while(TRUE){ 
         diritem=readdir(dir);
         if(diritem==NULL) break;
         filename=(char * )malloc(MAXBUF+1);
@@ -287,12 +301,14 @@ int  handlestaticdir(FILE * sock,char * real,char * f){
         }else{
             fprintf(sock,"<li><a href='%s'>%s</a></li>",diritem->d_name,diritem->d_name);
         }
+    //fprintf(stderr,"response:%d\n",__LINE__);
     DHERE
         hlite_free(filename);
     DHERE
         //hacked here.to fix mem bugs;
     }
-        free(dir);
+    //fprintf(stderr,"response:%d\n",__LINE__);
+    free(dir);
 }
 
 
@@ -305,26 +321,18 @@ void epoll_callback (int fd){
     //printf("got msg from:child process:%d\n",getpid());
     char buffer[MAXBUF];
     int len;
-    hlite_thread_node * pthread_node;
+    hlite_thread_node  * pthread_node;
     int previous=0;
     response_arg * resp;
-    pthread_t thread_t;
     bzero(buffer, MAXBUF);
+    //fprintf(stderr,"got fd:%d\n",fd);
     DHERE
     if ((len = recv(fd, buffer, MAXBUF, 0)) > 0) {
         DHERE
-        FILE *ClientFP = fdopen(fd, "w");
-        if (ClientFP == NULL) {
-            if (!daemon_y_n) {
-                DHERE
-                prterrmsg("fdopen()");
-            } else {
-                DHERE
-                wrterrmsg("fdopen()");
-            }
-        } else {
+        {
             DHERE
-            char Req[1024];
+            char * Req;
+            Req=malloc(sizeof(char)*1024);
             if(cbstrfwimatch(buffer,"GET")){
                 DHERE
 				//printf("GET command GET");
@@ -345,25 +353,38 @@ void epoll_callback (int fd){
             DHERE
             bzero(buffer, MAXBUF);
             DHERE
-            resp=malloc(sizeof(response_arg * ));
-            resp->file=ClientFP;
+            resp=malloc(sizeof(response_arg  ));
+            resp->fd=fd;
             resp->fpath=Req;
+            hlite_string * root_str;
+            root_str=hlite_dict_get_by_chars((hlite_dict *)conf,(const char *) "root");
+            resp->root=root_str;//some thing wrong
             DHERE
             previous=current_thread+1;
             if(previous==MAX_THREADS){
                 previous=0;
             }
             pthread_node=all_threads->p[previous];
+            fprintf(stderr,"current_thread:%d\,previous:%d\n",current_thread,previous);
             if(pthread_node->active==1){
-                pthread_join(pthread_node->thread,NULL);
+                //fprintf(stderr,"try to join thread::%d\n",previous);
+                fprintf(stderr,"%p\n",pthread_node->thread);
+                if(pthread_node->thread!=NULL){
+                    pthread_join(&(pthread_node->thread),NULL);
+                    DHERE
+                }
+                DHERE
                 pthread_node->active=0;
             }
+            DHERE
             pthread_node=all_threads->p[current_thread];
-            int iret1 = pthread_create(&thread_t, NULL, handleresponse, (void *) resp);
+            int iret1 = pthread_create(&(pthread_node->thread), NULL, handleresponse, (void *) resp);
+            pthread_node->active=1;
             current_thread++;
             if(current_thread==MAX_THREADS){
                 current_thread=0;
             }
+            fprintf(stderr,"curent thread points to:%d\n",current_thread);
             //handleresponse(ClientFP, Req);
             DHERE
         }
@@ -476,12 +497,12 @@ int daemonize(char * access_log,char * error_log){
     if (fork())
         exit(0);
         */
-    access_log_fd=fopen(access_log,"a+");
+    access_log_fd=open(access_log,O_CREAT|O_RDWR);
     if(!access_log_fd){
         fprintf(stderr,"ERROR:Can't Write Access Log file,Terminating...\n");
         exit(0);
     }
-    error_log_fd=fopen(error_log,"a+");
+    error_log_fd=open(error_log,O_CREAT|O_RDWR);
     if(!error_log_fd){
         fprintf(stderr,"ERROR:Can't Write Error Log file,Terminating...\n");
         exit(0);
@@ -492,12 +513,18 @@ int daemonize(char * access_log,char * error_log){
 
 int main(int argc,void ** argv)
 {
+    signal(SIGINT,sig);
     pthread_mutex_init(&mutex,NULL);
     int k;
     hlite_thread_node * thread_node;
+    all_threads=hlite_new_list(MAX_THREADS);
     for(k=0;k<MAX_THREADS;k++){
         thread_node=malloc(sizeof(hlite_thread_node));
+        thread_node->active=0;
+        hlite_list_append(all_threads,thread_node);
     }
+    DHERE
+    current_thread=0;
     int sockfd,newsockfd,is_connected[MAXSOCKFD],fd;
     struct sockaddr_in addr;
 	struct sockaddr local;
@@ -510,6 +537,7 @@ int main(int argc,void ** argv)
     hlite_string * str_buf2;
     hlite_string * access_log;
     hlite_string * error_log;
+    DHERE
 
     int c;
     while((c = getopt (argc,(char * const *) argv, "hf:")) != -1)
@@ -537,6 +565,7 @@ int main(int argc,void ** argv)
         usage();
         hlite_abort();
     }
+    DHERE
     conf=hlite_new_list(16);
     hlite_parse_config_file(configfile,conf);
     DHERE

@@ -26,6 +26,8 @@ clean:
 	$(RM) *.o test ./hlite
 run:
 	$(BIN)  -f ../etc/demo.conf
+r1:
+	$(BIN)  -f ../etc/1979.conf
 val:
 	valgrind -v --track-origins=yes --tool=memcheck  --show-reachable=yes --leak-check=full ./hlite -f ../etc/demo.conf  
 mem:
