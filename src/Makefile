@@ -28,6 +28,8 @@ run:
 	$(BIN)  -f ../etc/demo.conf
 val:
 	valgrind -v --track-origins=yes --tool=memcheck  --show-reachable=yes --leak-check=full ./hlite -f ../etc/demo.conf  
+mem:
+	valgrind -v  --tool=memcheck   ./hlite -f ../etc/demo.conf  
 curl:
 	curl -i http://localhost:1970/
 .PHONY:clean

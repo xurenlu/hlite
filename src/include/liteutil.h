@@ -11,7 +11,7 @@
 #define TRUE 1
 #define VERSION "0.1.1"
 
-#define prterrmsg(msg) {write(error_log_fd,msg,strlen(msg));}
+#define prterrmsg(msg) {fprintf(stderr,msg);}
 #define wrterrmsg(msg) {write(error_log_fd,msg,strlen(msg));}
 #define log_access(msg){write(access_log_fd,msg,strlen(msg));}
 #define prtinfomsg(msg) {fputs(msg, stdout); }
@@ -62,5 +62,12 @@ typedef struct hlite_list_t hlite_dict;
 struct response_arg_t {
     FILE * file;
     const char * fpath;
+    int thread_id;
 } ;
 typedef struct response_arg_t response_arg;
+
+struct hlite_thread_node_t {
+    pthread_t thread;
+    int active;
+};
+typedef  struct hlite_thread_node_t hlite_thread_node;

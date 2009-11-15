@@ -63,7 +63,7 @@ void hlite_string_free(hlite_string * str){
 
 /**
  * generate new LIST */
-hlite_list * hlite_list_new(int size){
+hlite_list * hlite_new_list(int size){
     hlite_list * list;
     list=(hlite_list *) malloc(sizeof(hlite_list));
 
@@ -531,3 +531,11 @@ int cbstrbwmatch(const char *str, const char *key){
   return TRUE;
 }
 
+/**
+ * allocate memory for a hlite_thread_node;
+ * */
+hlite_thread_node * hlite_new_thread_node(){
+    hlite_thread_node * p= malloc(sizeof(hlite_thread_node));
+    p->active=0;
+    return p;
+}

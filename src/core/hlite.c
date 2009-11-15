@@ -21,13 +21,17 @@
 #define MAXSOCKFD 10
 #define MAX_EVENTS 1024
 #define MAXBUF 8192
+#define MAX_THREADS 1024
 
 int access_log_fd=0;
 int error_log_fd=0;
 int daemon_y_n=0;
-
+int epollfd;
+int current_thread;
+struct epoll_event ev, events[MAX_EVENTS];
 hlite_dict * conf;
-
+pthread_mutex_t mutex;
+hlite_list * all_threads;
 void clean_global_mem(){
     if(access_log_fd)
     close(access_log_fd);
@@ -35,6 +39,17 @@ void clean_global_mem(){
     close(error_log_fd);
     hlite_dict_free(conf);
 
+}
+void removeevt(FILE * sock){
+    int fd;
+    fd=fileno(sock);
+    pthread_mutex_lock(&mutex);
+    ev.events = EPOLLIN | EPOLLET;
+    ev.data.fd = fd;
+    epoll_ctl(epollfd, EPOLL_CTL_DEL,fd, &ev);
+    close(fd);
+    fclose(sock);
+    pthread_mutex_unlock(&mutex);
 }
 /**
  * generate response
@@ -114,7 +129,8 @@ void handleresponse(void * resp){
         hlite_free(real);
         hlite_free(orig);
         hlite_free(query);
-        fclose(sock);
+        removeevt(sock);
+        return ;
         //hlite_string_free(root_str);
     }
     DHERE	
@@ -184,7 +200,7 @@ void handleresponse(void * resp){
     DHERE	
     hlite_free(orig);
     DHERE	
-    fclose(sock);
+        removeevt(sock);
     //hlite_string_free(root_str);
 }
 
@@ -289,6 +305,8 @@ void epoll_callback (int fd){
     //printf("got msg from:child process:%d\n",getpid());
     char buffer[MAXBUF];
     int len;
+    hlite_thread_node * pthread_node;
+    int previous=0;
     response_arg * resp;
     pthread_t thread_t;
     bzero(buffer, MAXBUF);
@@ -331,9 +349,21 @@ void epoll_callback (int fd){
             resp->file=ClientFP;
             resp->fpath=Req;
             DHERE
+            previous=current_thread+1;
+            if(previous==MAX_THREADS){
+                previous=0;
+            }
+            pthread_node=all_threads->p[previous];
+            if(pthread_node->active==1){
+                pthread_join(pthread_node->thread,NULL);
+                pthread_node->active=0;
+            }
+            pthread_node=all_threads->p[current_thread];
             int iret1 = pthread_create(&thread_t, NULL, handleresponse, (void *) resp);
-            pthread_join(thread_t,NULL);
-            hlite_free(resp);
+            current_thread++;
+            if(current_thread==MAX_THREADS){
+                current_thread=0;
+            }
             //handleresponse(ClientFP, Req);
             DHERE
         }
@@ -462,8 +492,12 @@ int daemonize(char * access_log,char * error_log){
 
 int main(int argc,void ** argv)
 {
-
-	struct epoll_event ev, events[MAX_EVENTS];
+    pthread_mutex_init(&mutex,NULL);
+    int k;
+    hlite_thread_node * thread_node;
+    for(k=0;k<MAX_THREADS;k++){
+        thread_node=malloc(sizeof(hlite_thread_node));
+    }
     int sockfd,newsockfd,is_connected[MAXSOCKFD],fd;
     struct sockaddr_in addr;
 	struct sockaddr local;
@@ -503,7 +537,7 @@ int main(int argc,void ** argv)
         usage();
         hlite_abort();
     }
-    conf=hlite_list_new(16);
+    conf=hlite_new_list(16);
     hlite_parse_config_file(configfile,conf);
     DHERE
     str_buf2    =hlite_dict_get_by_chars(conf,"run_daemon");
@@ -551,7 +585,7 @@ int main(int argc,void ** argv)
     }
 
     DHERE 
-    int  conn_sock, nfds, epollfd,n;
+    int  conn_sock, nfds, n;
     epollfd = epoll_create(10);
     if (epollfd == -1) {
         perror("epoll_create");
@@ -593,16 +627,18 @@ int main(int argc,void ** argv)
                 }
             } else {
                 epoll_callback(events[n].data.fd);
+                /**
                 DHERE
                 ev.events = EPOLLIN | EPOLLET;
                 ev.data.fd = events[n].data.fd;
                 epoll_ctl(epollfd, EPOLL_CTL_DEL, events[n].data.fd, &ev);
                 close(events[n].data.fd); 
+                */
             }
         }
     }
 
-
+    /**
     for(fd=0;fd<MAXSOCKFD;fd++)
         is_connected[fd]=0;
     while(1){
@@ -630,5 +666,6 @@ int main(int argc,void ** argv)
                 }
             }
     }
+    */
 }
 
