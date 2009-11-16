@@ -19,7 +19,7 @@
 #include <signal.h>
 
 #define MAXSOCKFD 10
-#define MAX_EVENTS 32
+#define MAX_EVENTS 4196
 #define MAXBUF 8192
 #define MAX_THREADS 32
 
@@ -27,11 +27,13 @@ int access_log_fd=0;
 int error_log_fd=0;
 int daemon_y_n=0;
 int epollfd;
-int current_thread;
+long current_thread;
+int gg=0;
 struct epoll_event ev, events[MAX_EVENTS];
 hlite_dict * conf;
 pthread_mutex_t mutex;
-hlite_list * all_threads;
+int _thread_status[MAX_THREADS];
+pthread_t _threads[MAX_THREADS];
 void clean_global_mem(){
     if(access_log_fd)
     close(access_log_fd);
@@ -43,19 +45,25 @@ void clean_global_mem(){
 void sig(int signal){
     kill(getpid(),SIGSEGV);
 }
-void removeevt(FILE * sock){
-    pthread_mutex_lock(&mutex);
+void removeevt(FILE * sock,int thread_id){
+    //pthread_mutex_lock(&mutex);
     //fprintf(stderr,"response:%d\n",__LINE__);
+    DHERE
     int fd;
     fd=fileno(sock);
     ev.events = EPOLLIN | EPOLLET;
+    DHERE
     ev.data.fd = fd;
-    epoll_ctl(epollfd, EPOLL_CTL_DEL,fd, &ev);
     fclose(sock);
+    DHERE
     close(fd);
+    epoll_ctl(epollfd, EPOLL_CTL_DEL,fd, &ev);
+    DHERE
+    //_threads[thread_id].active=0;
+    //pthread_exit((void *)2);
     //fprintf(stderr,"response:%d\n",__LINE__);
     //fprintf(stderr,"fd removed:%d\n",fd);
-    pthread_mutex_unlock(&mutex);
+    //pthread_mutex_unlock(&mutex);
 }
 /**
  * generate response
@@ -64,6 +72,8 @@ void handleresponse(void * resp){
     FILE * sock;
     char * f;
     int fd;
+    int thread_id;
+    thread_id=((response_arg *)resp)->thread_id;
     fd=((response_arg * )resp)->fd;
     sock=fdopen(fd,"w");
     f=((response_arg *)resp)->fpath;
@@ -142,7 +152,7 @@ void handleresponse(void * resp){
         hlite_free(real);
         hlite_free(orig);
         hlite_free(query);
-        removeevt(sock);
+        removeevt(sock,thread_id);
         return ;
         //hlite_string_free(root_str);
     }
@@ -215,7 +225,7 @@ void handleresponse(void * resp){
     DHERE	
     hlite_free(orig);
     DHERE	
-    removeevt(sock);
+    removeevt(sock,thread_id);
     return ;
 }
 
@@ -309,6 +319,7 @@ int  handlestaticdir(FILE * sock,char * real,char * f){
     }
     //fprintf(stderr,"response:%d\n",__LINE__);
     free(dir);
+    DHERE
 }
 
 
@@ -320,11 +331,14 @@ int  handlestaticdir(FILE * sock,char * real,char * f){
 void epoll_callback (int fd){
     //printf("got msg from:child process:%d\n",getpid());
     char buffer[MAXBUF];
+    gg++;
     int len;
-    hlite_thread_node  * pthread_node;
+    int joined;
+    hlite_thread_node   pthread_node;
     int previous=0;
     response_arg * resp;
     bzero(buffer, MAXBUF);
+    pthread_attr_t attr;
     //fprintf(stderr,"got fd:%d\n",fd);
     DHERE
     if ((len = recv(fd, buffer, MAXBUF, 0)) > 0) {
@@ -364,22 +378,42 @@ void epoll_callback (int fd){
             if(previous==MAX_THREADS){
                 previous=0;
             }
-            pthread_node=all_threads->p[previous];
-            fprintf(stderr,"current_thread:%d\,previous:%d\n",current_thread,previous);
-            if(pthread_node->active==1){
-                //fprintf(stderr,"try to join thread::%d\n",previous);
-                fprintf(stderr,"%p\n",pthread_node->thread);
-                if(pthread_node->thread!=NULL){
-                    pthread_join(&(pthread_node->thread),NULL);
+
+            fprintf(stderr,"total:%d,current_thread:%d\,previous:%d\n",gg,current_thread,previous);
+            /**
+            if(pthread_node.active==1){
+                fprintf(stderr,"create result:%d\n",pthread_node.create_res);
+                if(pthread_node.thread!=NULL){
+                    joined=pthread_join(&(pthread_node->thread),NULL);
+                    fprintf(stderr,"join result:%d\n",joined);
                     DHERE
                 }
                 DHERE
-                pthread_node->active=0;
+                pthread_node.active=0;
             }
+            else{
+                fprintf(stderr,"ww create result:%d\n",pthread_node.create_res);
+            }
+            */
             DHERE
-            pthread_node=all_threads->p[current_thread];
-            int iret1 = pthread_create(&(pthread_node->thread), NULL, handleresponse, (void *) resp);
-            pthread_node->active=1;
+            resp->thread_id=current_thread;
+            DHERE
+            pthread_attr_init(&attr);
+            pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
+            fprintf(stderr,"before create thread:%p\n",&_threads[current_thread]);
+            fprintf(stderr,"before create thread 2:%p\n",&_threads[current_thread+1]);
+            int iret1 = pthread_create(&_threads[current_thread], &attr, handleresponse, (void *) resp);
+            fprintf(stderr,"after create thread:%p\n",&_threads[current_thread]);
+            pthread_attr_destroy(&attr);
+            fprintf(stderr,"create result:%d\n",iret1);
+            DHERE
+            joined=pthread_join(_threads[current_thread],NULL);
+            fprintf(stderr,"join result e:%d\n",joined);
+            if(iret1!=0){
+                fprintf(stderr,"not zero returned\n");
+                exit(16);
+            }
+            _thread_status[current_thread]=1;
             current_thread++;
             if(current_thread==MAX_THREADS){
                 current_thread=0;
@@ -513,15 +547,12 @@ int daemonize(char * access_log,char * error_log){
 
 int main(int argc,void ** argv)
 {
+    fprintf(stderr,"edeadlk:%d,e:einval:%d,esrch:%d",EDEADLK,EINVAL,ESRCH);
     signal(SIGINT,sig);
     pthread_mutex_init(&mutex,NULL);
     int k;
-    hlite_thread_node * thread_node;
-    all_threads=hlite_new_list(MAX_THREADS);
     for(k=0;k<MAX_THREADS;k++){
-        thread_node=malloc(sizeof(hlite_thread_node));
-        thread_node->active=0;
-        hlite_list_append(all_threads,thread_node);
+        _thread_status[k]=0;
     }
     DHERE
     current_thread=0;
@@ -633,8 +664,10 @@ int main(int argc,void ** argv)
         DHERE
         nfds = epoll_wait(epollfd, events, MAX_EVENTS, -1);
         if (nfds == -1) {
+            fprintf(stderr,"errno:%d\n",errno);
             prterrmsg("epoll_pwait");
-            exit(3);
+            continue;
+            //exit(15);
         }
 
 

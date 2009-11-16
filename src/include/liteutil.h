@@ -6,6 +6,7 @@
 #define HUGE 4194304 //65536*64;
 
 //#define DHERE fprintf(stderr,"debug:%s,%d\n",__FILE__,__LINE__);
+#define DHERE2 fprintf(stderr,"debug:%s,%d\n",__FILE__,__LINE__);
 #define DHERE ;
 #define FALSE 0
 #define TRUE 1
@@ -64,11 +65,13 @@ struct response_arg_t {
     char * fpath;
     int thread_id;
     hlite_string *root;
+    int thread_no;
 } ;
 typedef struct response_arg_t response_arg;
 
 struct hlite_thread_node_t {
-    pthread_t thread;
+    pthread_t  thread;
     int active;
+    int create_res;
 };
 typedef  struct hlite_thread_node_t hlite_thread_node;
