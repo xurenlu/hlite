@@ -36,36 +36,36 @@ hlite_dict * conf;
 pthread_mutex_t mutex;
 int _thread_status[MAX_THREADS];
 pthread_t _threads[MAX_THREADS];
-void clean_global_mem(){
-    if(access_log_fd)
-    close(access_log_fd);
-    if(error_log_fd)
-    close(error_log_fd);
-    hlite_dict_free(conf);
+    void clean_global_mem(){
+        if(access_log_fd)
+            close(access_log_fd);
+        if(error_log_fd)
+            close(error_log_fd);
+        hlite_dict_free(conf);
 
-}
+    }
 void sig(int signal){
     kill(getpid(),SIGSEGV);
 }
 void removeevt(FILE * sock,int thread_id){
     //fprintf(stderr,"response:%d\n",__LINE__);
     DHERE
-    int fd;
+        int fd;
     fd=fileno(sock);
     ev.events = EPOLLIN | EPOLLET;
     DHERE
-    ev.data.fd = fd;
+        ev.data.fd = fd;
     DHERE
-    LOCK
-    fclose(sock);
+        LOCK
+        fclose(sock);
     close(fd);
     epoll_ctl(epollfd, EPOLL_CTL_DEL,fd, &ev);
     UNLOCK
-    DHERE
-    //_threads[thread_id].active=0;
-    //pthread_exit((void *)2);
-    //fprintf(stderr,"response:%d\n",__LINE__);
-    //fprintf(stderr,"fd removed:%d\n",fd);
+        DHERE
+        //_threads[thread_id].active=0;
+        //pthread_exit((void *)2);
+        //fprintf(stderr,"response:%d\n",__LINE__);
+        //fprintf(stderr,"fd removed:%d\n",fd);
 }
 /**
  * generate response
@@ -83,67 +83,67 @@ void handleresponse(void * resp){
     root_str = ((response_arg *)resp)->root;
     //fprintf(stderr,"response:%d\n",__LINE__);
     DHERE	
-    if(daemon_y_n){
-        char * temp;
-        temp=(char *)   malloc(sizeof(char) * (strlen((const char * )f)+2));
-        bzero((void * )temp,(size_t)strlen((const char *)f)+2);
-        sprintf(temp,"%s\n",f);
-        log_access(temp);
-        hlite_free(temp);
-    }
+        if(daemon_y_n){
+            char * temp;
+            temp=(char *)   malloc(sizeof(char) * (strlen((const char * )f)+2));
+            bzero((void * )temp,(size_t)strlen((const char *)f)+2);
+            sprintf(temp,"%s\n",f);
+            log_access(temp);
+            hlite_free(temp);
+        }
     DHERE	
-    struct stat info;
+        struct stat info;
     char * real;
     int len;
     char * query;
     DHERE
-    if(root_str==NULL){
-        prterrmsg("root not defined!");
-        hlite_abort();
-    }
+        if(root_str==NULL){
+            prterrmsg("root not defined!");
+            hlite_abort();
+        }
     DHERE	
-    //printf("root_str->data:%d\n",strlen(root_str->data));
-    //printf("f:%d\n",strlen(f));
-    //fprintf(stderr,"response:%d\n",__LINE__);
-    //fprintf(stderr,"root_str:%d\n",strlen(root_str->data));
-    len=strlen(root_str->data)+strlen(f);
+        //printf("root_str->data:%d\n",strlen(root_str->data));
+        //printf("f:%d\n",strlen(f));
+        //fprintf(stderr,"response:%d\n",__LINE__);
+        //fprintf(stderr,"root_str:%d\n",strlen(root_str->data));
+        len=strlen(root_str->data)+strlen(f);
     DHERE	
-    real=malloc(len+1);
+        real=malloc(len+1);
     bzero(real,len+1);
     DHERE	
-    if(cbstricmp(f,"HTTP/1.1")==0){
-        sprintf(real,"%s/",root_str->data);
-    }
-    else
-    {
-        sprintf(real,"%s%s",root_str->data,f);
-    }
+        if(cbstricmp(f,"HTTP/1.1")==0){
+            sprintf(real,"%s/",root_str->data);
+        }
+        else
+        {
+            sprintf(real,"%s%s",root_str->data,f);
+        }
     DHERE	
-    cburldecode(real,strlen(real));
+        cburldecode(real,strlen(real));
     char * orig=malloc(sizeof(char)*strlen(real)+1);
     DHERE	
-    bzero(orig,strlen(real)+1);
+        bzero(orig,strlen(real)+1);
     strcpy(orig,real);
     DHERE	
-    //目前路径还包含有?号,应该把问号前的部分取出来;
-    char * delim="?";
+        //目前路径还包含有?号,应该把问号前的部分取出来;
+        char * delim="?";
     DHERE	
-    char * path =strtok(real,delim);
+        char * path =strtok(real,delim);
     DHERE	
-    query=malloc(sizeof(char)*1024);
+        query=malloc(sizeof(char)*1024);
     DHERE	
-    bzero(query,strlen(real));
+        bzero(query,strlen(real));
     DHERE	
-    //fprintf(stderr,"response:%d\n",__LINE__);
-    if(strlen(path)<strlen(orig)){
-        DHERE	
-        memcpy(query,orig+strlen(path)+1,strlen(orig)-strlen(path)-1);
-    }
+        //fprintf(stderr,"response:%d\n",__LINE__);
+        if(strlen(path)<strlen(orig)){
+            DHERE	
+                memcpy(query,orig+strlen(path)+1,strlen(orig)-strlen(path)-1);
+        }
     DHERE	
-    //printf("request file :%s\n",real);
-    log_access(real);
+        //printf("request file :%s\n",real);
+        log_access(real);
     DHERE	
-    int stat_result;
+        int stat_result;
     //fprintf(stderr,"response:%d\n",__LINE__);
     if( (stat_result=stat(real,&info))==-1 ){
         fprintf(sock,"HTTP/1.1 200 OK\r\nServer: litehttpd-1.0.0\r\nConnection: close\r\n\r\n<html><head><title>lighthttpd-1.0.0 default page</title></head><body>404 forbiden</body></html>");
@@ -151,7 +151,7 @@ void handleresponse(void * resp){
         //wrterrmsg("Not found:");
         //wrterrmsg(real);
         DHERE
-        hlite_free(real);
+            hlite_free(real);
         hlite_free(orig);
         hlite_free(query);
         removeevt(sock,thread_id);
@@ -159,75 +159,75 @@ void handleresponse(void * resp){
         //hlite_string_free(root_str);
     }
     DHERE	
-    /**
-     * 优先看是否需要用CGI处理
-     */
         /**
-    hlite_string * cgi_dir;
-    cgi_dir=hlite_dict_get_by_chars(conf,"cgi_dir");
-    if(cbstrfwimatch(real,cgi_dir->data)){
-        printf("try to handle cgi:%s\n",real);
-        handlecgi(sock,real,f);
-    }
-    hlite_string_free(cgi_dir);
-    */
-    DHERE	
-    //fprintf(stderr,"response:%d\n",__LINE__);
-    if(S_ISREG(info.st_mode)){
+         * 优先看是否需要用CGI处理
+         */
+        /**
+          hlite_string * cgi_dir;
+          cgi_dir=hlite_dict_get_by_chars(conf,"cgi_dir");
+          if(cbstrfwimatch(real,cgi_dir->data)){
+          printf("try to handle cgi:%s\n",real);
+          handlecgi(sock,real,f);
+          }
+          hlite_string_free(cgi_dir);
+          */
         DHERE	
-        if(cbstrbwmatch(real,".cgi")){
-            //printf("try to handle cgi:%s\n",real);
+        //fprintf(stderr,"response:%d\n",__LINE__);
+        if(S_ISREG(info.st_mode)){
             DHERE	
-            int pid;
-            switch(pid=fork()){
-                case -1:
+                if(cbstrbwmatch(real,".cgi")){
+                    //printf("try to handle cgi:%s\n",real);
                     DHERE	
-                    if (!daemon_y_n) {
-                        DHERE	
-                        prterrmsg("fork error while handle cgi process;");
-                    } else {
-                        DHERE	
-                        wrterrmsg("fork error while handle cgi process;");
+                        int pid;
+                    switch(pid=fork()){
+                        case -1:
+                            DHERE	
+                                if (!daemon_y_n) {
+                                    DHERE	
+                                        prterrmsg("fork error while handle cgi process;");
+                                } else {
+                                    DHERE	
+                                        wrterrmsg("fork error while handle cgi process;");
+                                }
+                            break;
+                        case 0:
+                            // child process
+
+                            //handlecgi(sock,real,orig,query);
+                            DHERE	
+                                break;
+                        default :
+                            DHERE	
+                                /**
+                                  hlite_free(real);
+                                  DHERE	
+                                  hlite_free(query);
+                                  DHERE	
+                                  hlite_free(orig);
+                                  DHERE	
+                                  hlite_string_free(root_str);
+                                  return 0;
+                                  */
                     }
-                    break;
-                case 0:
-                    // child process
+                }
 
-                    //handlecgi(sock,real,orig,query);
-                        DHERE	
-                    break;
-                default :
-                        DHERE	
-    /**
-                    hlite_free(real);
-    DHERE	
-                    hlite_free(query);
-    DHERE	
-                    hlite_free(orig);
-    DHERE	
-                    hlite_string_free(root_str);
-                    return 0;
-    */
-            }
+                else{
+                    handlestaticfile(sock,real,orig);
+                }
         }
-
-        else{
-            handlestaticfile(sock,real,orig);
+        else if (S_ISDIR(info.st_mode)){
+            DHERE	
+                handlestaticdir(sock,real,orig);
         }
-    }
-    else if (S_ISDIR(info.st_mode)){
-        DHERE	
-        handlestaticdir(sock,real,orig);
-    }
     //fprintf(stderr,"response:%d\n",__LINE__);
     DHERE	
-    hlite_free(real);
+        hlite_free(real);
     DHERE	
-    hlite_free(query);
+        hlite_free(query);
     DHERE	
-    hlite_free(orig);
+        hlite_free(orig);
     DHERE	
-    removeevt(sock,thread_id);
+        removeevt(sock,thread_id);
     return ;
 }
 
@@ -242,7 +242,7 @@ int handlestaticfile(FILE * sock,char * real,char * f){
     fd=open(real,O_RDONLY);
     if(!fd){
         fprintf(stderr,"file reading error:%s\n",real);
-		hlite_abort();
+        hlite_abort();
     }
     len=lseek(fd,0,SEEK_END);
     p=(char *)malloc(len+1);
@@ -253,8 +253,8 @@ int handlestaticfile(FILE * sock,char * real,char * f){
 
 
     /**
- *  handle the content-type:
- *  */
+     *  handle the content-type:
+     *  */
     char * buf="text/html";
 
     if(cbstrbwmatch(real,".gif")){
@@ -271,15 +271,15 @@ int handlestaticfile(FILE * sock,char * real,char * f){
 
     if(cbstrbwmatch(real,".css")){buf="text/css";}
     if(cbstrbwmatch(real,".js")){buf="text/javascript";}
-    
+
     fputs("HTTP/1.1 200 OK\r\n",sock);
     fputs("SERVER:litehttpd-1.0.0\r\n",sock);
     fputs("Connection: keep-alive\r\n",sock);
     fputs("Content-type: ",sock);
     fputs(buf,sock);
     fputs("\r\n",sock);
-//  fputs("Content-Length:",sock);
-//  fputs(len,sock);
+    //  fputs("Content-Length:",sock);
+    //  fputs(len,sock);
     fputs("\r\n",sock);
     //fputs(p,sock);
     write(sockfd,p,ret);
@@ -295,8 +295,10 @@ int  handlestaticdir(FILE * sock,char * real,char * f){
     char * filename;
     int len;
     //fprintf(stderr,"response:%d\n",__LINE__);
-    dir=opendir(real);
+    //dir=opendir(real);
     fprintf(sock, "HTTP/1.1 200 OK\r\nServer:lighttpd-1.0.0\r\nConnection: keep-alive\r\nContent-type: text/html\r\n\r\n\r\n<ul>");
+    fprintf(sock,"testing");
+    return 0;
     while(TRUE){ 
         diritem=readdir(dir);
         if(diritem==NULL) break;
@@ -313,13 +315,14 @@ int  handlestaticdir(FILE * sock,char * real,char * f){
         }else{
             fprintf(sock,"<li><a href='%s'>%s</a></li>",diritem->d_name,diritem->d_name);
         }
-    //fprintf(stderr,"response:%d\n",__LINE__);
-    DHERE
-        hlite_free(filename);
-    DHERE
-        //hacked here.to fix mem bugs;
+        //fprintf(stderr,"response:%d\n",__LINE__);
+        DHERE
+            hlite_free(filename);
+        DHERE
+            //hacked here.to fix mem bugs;
     }
     //fprintf(stderr,"response:%d\n",__LINE__);
+    closedir(dir);
     free(dir);
     DHERE
 }
@@ -345,122 +348,122 @@ void epoll_callback (int fd){
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
     //fprintf(stderr,"got fd:%d\n",fd);
     DHERE
-    if ((len = recv(fd, buffer, MAXBUF, 0)) > 0) {
-        DHERE
-        {
+        if ((len = recv(fd, buffer, MAXBUF, 0)) > 0) {
             DHERE
-            char * Req;
-            Req=malloc(sizeof(char)*1024);
-            if(cbstrfwimatch(buffer,"GET")){
+            {
                 DHERE
-				//printf("GET command GET");
+                    char * Req;
+                Req=malloc(sizeof(char)*1024);
+                if(cbstrfwimatch(buffer,"GET")){
+                    DHERE
+                        //printf("GET command GET");
+                        DHERE
+                        sscanf(buffer, "GET /%s HTTP", Req);
+                }
+                else if (cbstrfwimatch(buffer,"POST")) {
+                    DHERE
+                        //printf("GET command POST");
+                        DHERE
+                        sscanf(buffer, "POST /%s HTTP", Req);
+                }
+                else {
+                    DHERE
+                        //printf("GET command UNKOWN");
+                        // to do.
+                }
                 DHERE
-                sscanf(buffer, "GET /%s HTTP", Req);
-            }
-            else if (cbstrfwimatch(buffer,"POST")) {
+                    bzero(buffer, MAXBUF);
                 DHERE
-				//printf("GET command POST");
+                    resp=malloc(sizeof(response_arg  ));
+                resp->fd=fd;
+                resp->fpath=Req;
+                hlite_string * root_str;
+                root_str=hlite_dict_get_by_chars((hlite_dict *)conf,(const char *) "root");
+                resp->root=root_str;//some thing wrong
                 DHERE
-                sscanf(buffer, "POST /%s HTTP", Req);
-            }
-            else {
-                DHERE
-				//printf("GET command UNKOWN");
-                // to do.
-            }
-            DHERE
-            bzero(buffer, MAXBUF);
-            DHERE
-            resp=malloc(sizeof(response_arg  ));
-            resp->fd=fd;
-            resp->fpath=Req;
-            hlite_string * root_str;
-            root_str=hlite_dict_get_by_chars((hlite_dict *)conf,(const char *) "root");
-            resp->root=root_str;//some thing wrong
-            DHERE
-            LOCK
-            previous=current_thread+1;
-            UNLOCK
-            if(previous==MAX_THREADS){
-                previous=0;
-            }
+                    LOCK
+                    previous=current_thread+1;
+                UNLOCK
+                    if(previous==MAX_THREADS){
+                        previous=0;
+                    }
 
-            fprintf(stderr,"total:%d,current_thread:%d,previous:%d\n",gg,current_thread,previous);
-            if(_thread_status[previous]==1){
-                joined=pthread_join(_threads[previous],NULL);
-                fprintf(stderr,"join result:%d\n",joined);
+                fprintf(stderr,"total:%d,current_thread:%d,previous:%d\n",gg,current_thread,previous);
+                if(_thread_status[previous]==1){
+                    joined=pthread_join(_threads[previous],NULL);
+                    fprintf(stderr,"join result:%d\n",joined);
+                    DHERE
+                        _thread_status[previous]=0;
+                }
                 DHERE
-                _thread_status[previous]=0;
+                    resp->thread_id=current_thread;
+                DHERE
+                    int iret1 = pthread_create(&_threads[current_thread], &attr, handleresponse, (void *) resp);
+                DHERE
+                    /**
+                      joined=pthread_join(_threads[current_thread],NULL);
+                      */
+                    if(iret1!=0){
+                        fprintf(stderr,"not zero returned\n");
+                        exit(16);
+                    }
+                LOCK
+                    _thread_status[current_thread]=1;
+                current_thread++;
+                if(current_thread==MAX_THREADS){
+                    current_thread=0;
+                }
+                UNLOCK
+                    fprintf(stderr,"curent thread points to:%d\n",current_thread);
+                //handleresponse(ClientFP, Req);
+                DHERE
             }
-            DHERE
-            resp->thread_id=current_thread;
-            DHERE
-            int iret1 = pthread_create(&_threads[current_thread], &attr, handleresponse, (void *) resp);
-            DHERE
-            /**
-            joined=pthread_join(_threads[current_thread],NULL);
-            */
-            if(iret1!=0){
-                fprintf(stderr,"not zero returned\n");
-                exit(16);
-            }
-            LOCK
-            _thread_status[current_thread]=1;
-            current_thread++;
-            if(current_thread==MAX_THREADS){
-                current_thread=0;
-            }
-            UNLOCK
-            fprintf(stderr,"curent thread points to:%d\n",current_thread);
-            //handleresponse(ClientFP, Req);
-            DHERE
         }
-    }
     pthread_attr_destroy(&attr);
 }
 
 
 /**
-* @param str 需要解码的url字符串
-* @param len 需要解码的url的长度
-* @return int 返回解码后的url长度
-*/
+ * @param str 需要解码的url字符串
+ * @param len 需要解码的url的长度
+ * @return int 返回解码后的url长度
+ */
 int cburldecode(char *str, int len)
 {
-        char *dest = str;
-        char *data = str;
+    char *dest = str;
+    char *data = str;
 
-        int value;
-        int c;
+    int value;
+    int c;
 
-        while (len--) {
-                if (*data == '+') {
-                        *dest = ' ';
-                }
-                else if (*data == '%' && len >= 2 && isxdigit((int) *(data + 1))
-  && isxdigit((int) *(data + 2)))
-                {
-
-                        c = ((unsigned char *)(data+1))[0];
-                        if (isupper(c))
-                                c = tolower(c);
-                        value = (c >= '0' && c <= '9' ? c - '0' : c - 'a' + 10) * 16;
-                        c = ((unsigned char *)(data+1))[1];
-                        if (isupper(c))
-                                c = tolower(c);
-                                value += c >= '0' && c <= '9' ? c - '0' : c - 'a' + 10;
-
-                        *dest = (char)value ;
-                        data += 2;
-                        len -= 2;
-                } else {
-                        *dest = *data;
-                }
-                data++;
-                dest++;
+    while (len--) {
+        if (*data == '+') {
+            *dest = ' ';
         }
-        *dest = '\0';
-        return dest - str;
+        else if (*data == '%' && len >= 2 && isxdigit((int) *(data + 1))
+                && isxdigit((int) *(data + 2)))
+        {
+
+            c = ((unsigned char *)(data+1))[0];
+            if (isupper(c))
+                c = tolower(c);
+            value = (c >= '0' && c <= '9' ? c - '0' : c - 'a' + 10) * 16;
+            c = ((unsigned char *)(data+1))[1];
+            if (isupper(c))
+                c = tolower(c);
+            value += c >= '0' && c <= '9' ? c - '0' : c - 'a' + 10;
+
+            *dest = (char)value ;
+            data += 2;
+            len -= 2;
+        } else {
+            *dest = *data;
+        }
+        data++;
+        dest++;
+    }
+    *dest = '\0';
+    return dest - str;
 }
 
 
@@ -519,12 +522,12 @@ void hlite_abort(){
 /** Enter the Daemon model */
 int daemonize(char * access_log,char * error_log){
     /**
-    return 0;
-    if (fork())
-        exit(0);
-    if (fork())
-        exit(0);
-        */
+      return 0;
+      if (fork())
+      exit(0);
+      if (fork())
+      exit(0);
+      */
     access_log_fd=open(access_log,O_CREAT|O_RDWR);
     if(!access_log_fd){
         fprintf(stderr,"ERROR:Can't Write Access Log file,Terminating...\n");
@@ -535,7 +538,7 @@ int daemonize(char * access_log,char * error_log){
         fprintf(stderr,"ERROR:Can't Write Error Log file,Terminating...\n");
         exit(0);
     }
-//@debug    close(0), close(1), close(2);
+    //@debug    close(0), close(1), close(2);
 }
 
 
@@ -549,10 +552,10 @@ int main(int argc,void ** argv)
         _thread_status[k]=0;
     }
     DHERE
-    current_thread=0;
+        current_thread=0;
     int sockfd,newsockfd,is_connected[MAXSOCKFD],fd;
     struct sockaddr_in addr;
-	struct sockaddr local;
+    struct sockaddr local;
     int addr_len = sizeof(struct sockaddr_in);
     fd_set readfds;
     char buffer[256];
@@ -564,82 +567,82 @@ int main(int argc,void ** argv)
     hlite_string * error_log;
     DHERE
 
-    int c;
+        int c;
     while((c = getopt (argc,(char * const *) argv, "hf:")) != -1)
-    switch(c){
-        case 'h':
-            usage();
-            hlite_abort();
-            break;
-        case 'f':
-            configfile= hlite_new_string(optarg);
-            break;
-        case '?':
-            if (isprint (optopt))
-                fprintf (stderr, "Unknown option `-%c'.\n", optopt);
-            else
-                fprintf (stderr,
-                       "Unknown option character `\\x%x'.\n",
-                       optopt);
-            return 1;
-        default:
-            usage();
-            hlite_abort();
-    }
+        switch(c){
+            case 'h':
+                usage();
+                hlite_abort();
+                break;
+            case 'f':
+                configfile= hlite_new_string(optarg);
+                break;
+            case '?':
+                if (isprint (optopt))
+                    fprintf (stderr, "Unknown option `-%c'.\n", optopt);
+                else
+                    fprintf (stderr,
+                            "Unknown option character `\\x%x'.\n",
+                            optopt);
+                return 1;
+            default:
+                usage();
+                hlite_abort();
+        }
     if(configfile==NULL){
         usage();
         hlite_abort();
     }
     DHERE
-    conf=hlite_new_list(16);
+        conf=hlite_new_list(16);
     hlite_parse_config_file(configfile,conf);
     DHERE
-    str_buf2    =hlite_dict_get_by_chars(conf,"run_daemon");
+        str_buf2    =hlite_dict_get_by_chars(conf,"run_daemon");
     DHERE
-    access_log  =hlite_dict_get_by_chars(conf,"access_log");
+        access_log  =hlite_dict_get_by_chars(conf,"access_log");
     DHERE
-    error_log   =hlite_dict_get_by_chars(conf,"error_log");
+        error_log   =hlite_dict_get_by_chars(conf,"error_log");
     DHERE
         if(str_buf2==NULL){
             DHERE
-            printf("Oh,str_buf2 is null\n");
+                printf("Oh,str_buf2 is null\n");
         }
     if(( str_buf2!=NULL) && (!strcmp(str_buf2->data,"y"))){
         DHERE
-        daemonize(access_log->data,error_log->data);
+            daemonize(access_log->data,error_log->data);
     }
     DHERE
-    if ((sockfd = socket(AF_INET,SOCK_STREAM,0))<0){
-        DHERE
-        wrterrmsg("create socket failed:");
-        hlite_abort();
-    }
+        if ((sockfd = socket(AF_INET,SOCK_STREAM,0))<0){
+            DHERE
+                wrterrmsg("create socket failed:");
+            hlite_abort();
+        }
     DHERE
-    bzero(&addr,sizeof(addr));
+        bzero(&addr,sizeof(addr));
     addr.sin_family =AF_INET;
     int port;
     DHERE
-    hlite_string * port_str;
+        hlite_string * port_str;
     DHERE
-    port_str=hlite_dict_get_by_chars(conf,"port");
+        port_str=hlite_dict_get_by_chars(conf,"port");
     DHERE
-    port=atoi(port_str->data);
+        port=atoi(port_str->data);
     DHERE
-    hlite_string_free(port_str);
+        hlite_string_free(port_str);
     addr.sin_port = htons(port);
     addr.sin_addr.s_addr = htonl(INADDR_ANY);
     DHERE
-    if(bind(sockfd,(const struct sockaddr *)&addr,sizeof(addr))<0){
-        perror("connect");
-        exit(1);
-    }
+        if(bind(sockfd,(const struct sockaddr *)&addr,sizeof(addr))<0){
+            perror("connect");
+            exit(1);
+        }
     if(listen(sockfd,3)<0){
         perror("listen");
         exit(1);
     }
 
     DHERE 
-    int  conn_sock, nfds, n;
+        int  conn_sock, nfds, n;
     epollfd = epoll_create(10);
     if (epollfd == -1) {
         perror("epoll_create");
@@ -647,85 +650,85 @@ int main(int argc,void ** argv)
     }
 
     DHERE 
-    ev.events = EPOLLIN;
+        ev.events = EPOLLIN;
     ev.data.fd = sockfd;
     if (epoll_ctl(epollfd, EPOLL_CTL_ADD, sockfd, &ev) == -1) {
         wrterrmsg("epoll_ctl: epoll_ctl ADD failed.\n");
         exit(3);
     }
     DHERE 
-    for (;;) {
-        DHERE
-        nfds = epoll_wait(epollfd, events, MAX_EVENTS, -1);
-        if (nfds == -1) {
-            fprintf(stderr,"errno:%d\n",errno);
-            prterrmsg("epoll_pwait");
-            continue;
-            //exit(15);
-        }
+        for (;;) {
+            DHERE
+                nfds = epoll_wait(epollfd, events, MAX_EVENTS, -1);
+            if (nfds == -1) {
+                fprintf(stderr,"errno:%d\n",errno);
+                prterrmsg("epoll_pwait");
+                continue;
+                //exit(15);
+            }
 
 
-        for (n = 0; n < nfds; ++n) {
-            if (events[n].data.fd == sockfd) {
-                LOCK
-                conn_sock = accept(sockfd,
-                        (struct sockaddr *) &local, &addr_len);
-                UNLOCK
-                if (conn_sock == -1) {
-                    perror("accept");
-                    exit(3);
+            for (n = 0; n < nfds; ++n) {
+                if (events[n].data.fd == sockfd) {
+                    LOCK
+                        conn_sock = accept(sockfd,
+                                (struct sockaddr *) &local, &addr_len);
+                    UNLOCK
+                        if (conn_sock == -1) {
+                            perror("accept");
+                            exit(3);
+                        }
+                    LOCK
+                        setnonblocking(conn_sock);
+                    UNLOCK
+                        ev.events = EPOLLIN | EPOLLET;
+                    ev.data.fd = conn_sock;
+                    if (epoll_ctl(epollfd, EPOLL_CTL_ADD, conn_sock,
+                                &ev) == -1) {
+                        perror("epoll_ctl: conn_sock");
+                        exit(3);
+                    }
+                } else {
+                    epoll_callback(events[n].data.fd);
+                    /**
+                      DHERE
+                      ev.events = EPOLLIN | EPOLLET;
+                      ev.data.fd = events[n].data.fd;
+                      epoll_ctl(epollfd, EPOLL_CTL_DEL, events[n].data.fd, &ev);
+                      close(events[n].data.fd); 
+                      */
                 }
-                LOCK
-                setnonblocking(conn_sock);
-                UNLOCK
-                ev.events = EPOLLIN | EPOLLET;
-                ev.data.fd = conn_sock;
-                if (epoll_ctl(epollfd, EPOLL_CTL_ADD, conn_sock,
-                            &ev) == -1) {
-                    perror("epoll_ctl: conn_sock");
-                    exit(3);
-                }
-            } else {
-                epoll_callback(events[n].data.fd);
-                /**
-                DHERE
-                ev.events = EPOLLIN | EPOLLET;
-                ev.data.fd = events[n].data.fd;
-                epoll_ctl(epollfd, EPOLL_CTL_DEL, events[n].data.fd, &ev);
-                close(events[n].data.fd); 
-                */
             }
         }
-    }
 
     /**
-    for(fd=0;fd<MAXSOCKFD;fd++)
-        is_connected[fd]=0;
-    while(1){
-        FD_ZERO(&readfds);
-        FD_SET(sockfd,&readfds);
-        for(fd=0;fd<MAXSOCKFD;fd++)
-            if(is_connected[fd]) FD_SET(fd,&readfds);
-        if(!select(MAXSOCKFD,&readfds,NULL,NULL,NULL))continue;
-        for(fd=0;fd<MAXSOCKFD;fd++)
-            if(FD_ISSET(fd,&readfds)){
-                if(sockfd ==fd ){
-                    if((newsockfd = accept (sockfd,(struct sockaddr *) &addr,(socklen_t *) &addr_len))<0)
-                        perror("accept");
-                    write(newsockfd,msg,sizeof(msg));
-                    is_connected[newsockfd] =1;
-                    printf("cnnect from %s\n",inet_ntoa(addr.sin_addr));
-                }else{
-                    bzero(buffer,sizeof(buffer));
-                    if(read(fd,buffer,sizeof(buffer))<=0){
-                        printf("connect closed\n");
-                        is_connected[fd]=0;
-                        close(fd);
-                    }else
-                        printf("%s",buffer);
-                }
-            }
-    }
-    */
+      for(fd=0;fd<MAXSOCKFD;fd++)
+      is_connected[fd]=0;
+      while(1){
+      FD_ZERO(&readfds);
+      FD_SET(sockfd,&readfds);
+      for(fd=0;fd<MAXSOCKFD;fd++)
+      if(is_connected[fd]) FD_SET(fd,&readfds);
+      if(!select(MAXSOCKFD,&readfds,NULL,NULL,NULL))continue;
+      for(fd=0;fd<MAXSOCKFD;fd++)
+      if(FD_ISSET(fd,&readfds)){
+      if(sockfd ==fd ){
+      if((newsockfd = accept (sockfd,(struct sockaddr *) &addr,(socklen_t *) &addr_len))<0)
+      perror("accept");
+      write(newsockfd,msg,sizeof(msg));
+      is_connected[newsockfd] =1;
+      printf("cnnect from %s\n",inet_ntoa(addr.sin_addr));
+      }else{
+      bzero(buffer,sizeof(buffer));
+      if(read(fd,buffer,sizeof(buffer))<=0){
+      printf("connect closed\n");
+      is_connected[fd]=0;
+      close(fd);
+      }else
+      printf("%s",buffer);
+      }
+      }
+      }
+      */
 }
 
