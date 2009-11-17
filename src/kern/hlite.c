@@ -19,15 +19,17 @@
 #include <signal.h>
 
 #define MAXSOCKFD 10
-#define MAX_EVENTS 4196
+#define MAX_EVENTS 256 
 #define MAXBUF 8192
 #define MAX_THREADS 32
+#define LOCK pthread_mutex_lock(&mutex);
+#define UNLOCK pthread_mutex_unlock(&mutex);
 
 int access_log_fd=0;
 int error_log_fd=0;
 int daemon_y_n=0;
 int epollfd;
-long current_thread;
+int current_thread;
 int gg=0;
 struct epoll_event ev, events[MAX_EVENTS];
 hlite_dict * conf;
@@ -46,7 +48,6 @@ void sig(int signal){
     kill(getpid(),SIGSEGV);
 }
 void removeevt(FILE * sock,int thread_id){
-    //pthread_mutex_lock(&mutex);
     //fprintf(stderr,"response:%d\n",__LINE__);
     DHERE
     int fd;
@@ -54,16 +55,17 @@ void removeevt(FILE * sock,int thread_id){
     ev.events = EPOLLIN | EPOLLET;
     DHERE
     ev.data.fd = fd;
-    fclose(sock);
     DHERE
+    LOCK
+    fclose(sock);
     close(fd);
     epoll_ctl(epollfd, EPOLL_CTL_DEL,fd, &ev);
+    UNLOCK
     DHERE
     //_threads[thread_id].active=0;
     //pthread_exit((void *)2);
     //fprintf(stderr,"response:%d\n",__LINE__);
     //fprintf(stderr,"fd removed:%d\n",fd);
-    //pthread_mutex_unlock(&mutex);
 }
 /**
  * generate response
@@ -339,6 +341,8 @@ void epoll_callback (int fd){
     response_arg * resp;
     bzero(buffer, MAXBUF);
     pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
     //fprintf(stderr,"got fd:%d\n",fd);
     DHERE
     if ((len = recv(fd, buffer, MAXBUF, 0)) > 0) {
@@ -374,55 +378,45 @@ void epoll_callback (int fd){
             root_str=hlite_dict_get_by_chars((hlite_dict *)conf,(const char *) "root");
             resp->root=root_str;//some thing wrong
             DHERE
+            LOCK
             previous=current_thread+1;
+            UNLOCK
             if(previous==MAX_THREADS){
                 previous=0;
             }
 
-            fprintf(stderr,"total:%d,current_thread:%d\,previous:%d\n",gg,current_thread,previous);
-            /**
-            if(pthread_node.active==1){
-                fprintf(stderr,"create result:%d\n",pthread_node.create_res);
-                if(pthread_node.thread!=NULL){
-                    joined=pthread_join(&(pthread_node->thread),NULL);
-                    fprintf(stderr,"join result:%d\n",joined);
-                    DHERE
-                }
+            fprintf(stderr,"total:%d,current_thread:%d,previous:%d\n",gg,current_thread,previous);
+            if(_thread_status[previous]==1){
+                joined=pthread_join(_threads[previous],NULL);
+                fprintf(stderr,"join result:%d\n",joined);
                 DHERE
-                pthread_node.active=0;
+                _thread_status[previous]=0;
             }
-            else{
-                fprintf(stderr,"ww create result:%d\n",pthread_node.create_res);
-            }
-            */
             DHERE
             resp->thread_id=current_thread;
             DHERE
-            pthread_attr_init(&attr);
-            pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
-            fprintf(stderr,"before create thread:%p\n",&_threads[current_thread]);
-            fprintf(stderr,"before create thread 2:%p\n",&_threads[current_thread+1]);
             int iret1 = pthread_create(&_threads[current_thread], &attr, handleresponse, (void *) resp);
-            fprintf(stderr,"after create thread:%p\n",&_threads[current_thread]);
-            pthread_attr_destroy(&attr);
-            fprintf(stderr,"create result:%d\n",iret1);
             DHERE
+            /**
             joined=pthread_join(_threads[current_thread],NULL);
-            fprintf(stderr,"join result e:%d\n",joined);
+            */
             if(iret1!=0){
                 fprintf(stderr,"not zero returned\n");
                 exit(16);
             }
+            LOCK
             _thread_status[current_thread]=1;
             current_thread++;
             if(current_thread==MAX_THREADS){
                 current_thread=0;
             }
+            UNLOCK
             fprintf(stderr,"curent thread points to:%d\n",current_thread);
             //handleresponse(ClientFP, Req);
             DHERE
         }
     }
+    pthread_attr_destroy(&attr);
 }
 
 
@@ -673,13 +667,17 @@ int main(int argc,void ** argv)
 
         for (n = 0; n < nfds; ++n) {
             if (events[n].data.fd == sockfd) {
+                LOCK
                 conn_sock = accept(sockfd,
                         (struct sockaddr *) &local, &addr_len);
+                UNLOCK
                 if (conn_sock == -1) {
                     perror("accept");
                     exit(3);
                 }
+                LOCK
                 setnonblocking(conn_sock);
+                UNLOCK
                 ev.events = EPOLLIN | EPOLLET;
                 ev.data.fd = conn_sock;
                 if (epoll_ctl(epollfd, EPOLL_CTL_ADD, conn_sock,

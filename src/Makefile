@@ -2,9 +2,10 @@ CFLAGS = -g -O0 -I./include/ -lpthread
 RM=rm -f 
 BIN="./hlite" 
 LDFLAGS=" -lpthread "
+CC="gcc"
 #OBJECTS="./core/hlite.o ./misc/fcgi.o ./misc/liteutil.o"
 vpath %.h ./include
-vpath %.c core
+vpath %.c kern
 vpath %.c misc
 vpath %.c mod
 
