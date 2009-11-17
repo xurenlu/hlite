@@ -25,6 +25,11 @@
 #define LOCK pthread_mutex_lock(&mutex);
 #define UNLOCK pthread_mutex_unlock(&mutex);
 
+
+#define HERR_FGETFD 31
+#define HERR_FSETFD 32
+
+
 int access_log_fd=0;
 int error_log_fd=0;
 int daemon_y_n=0;
@@ -56,11 +61,9 @@ void removeevt(FILE * sock,int thread_id){
     DHERE
         ev.data.fd = fd;
     DHERE
-        LOCK
-        fclose(sock);
+    fclose(sock);
     close(fd);
     epoll_ctl(epollfd, EPOLL_CTL_DEL,fd, &ev);
-    UNLOCK
         DHERE
         //_threads[thread_id].active=0;
         //pthread_exit((void *)2);
@@ -70,7 +73,8 @@ void removeevt(FILE * sock,int thread_id){
 /**
  * generate response
  * */
-void handleresponse(void * resp){
+void * handleresponse(void * resp){
+    LOCK
     FILE * sock;
     char * f;
     int fd;
@@ -81,6 +85,7 @@ void handleresponse(void * resp){
     f=((response_arg *)resp)->fpath;
     hlite_string * root_str;
     root_str = ((response_arg *)resp)->root;
+    UNLOCK
     //fprintf(stderr,"response:%d\n",__LINE__);
     DHERE	
         if(daemon_y_n){
@@ -155,6 +160,8 @@ void handleresponse(void * resp){
         hlite_free(orig);
         hlite_free(query);
         removeevt(sock,thread_id);
+        hlite_free(f);
+        hlite_free(resp);
         return ;
         //hlite_string_free(root_str);
     }
@@ -228,6 +235,9 @@ void handleresponse(void * resp){
         hlite_free(orig);
     DHERE	
         removeevt(sock,thread_id);
+    UNLOCK
+    hlite_free(f);
+    hlite_free(resp);
     return ;
 }
 
@@ -323,7 +333,6 @@ int  handlestaticdir(FILE * sock,char * real,char * f){
     }
     //fprintf(stderr,"response:%d\n",__LINE__);
     closedir(dir);
-    free(dir);
     DHERE
 }
 
@@ -381,24 +390,24 @@ void epoll_callback (int fd){
                 root_str=hlite_dict_get_by_chars((hlite_dict *)conf,(const char *) "root");
                 resp->root=root_str;//some thing wrong
                 DHERE
-                    LOCK
                     previous=current_thread+1;
-                UNLOCK
                     if(previous==MAX_THREADS){
                         previous=0;
                     }
 
-                fprintf(stderr,"total:%d,current_thread:%d,previous:%d\n",gg,current_thread,previous);
+                fprintf(stderr,"%d,",gg);
                 if(_thread_status[previous]==1){
                     joined=pthread_join(_threads[previous],NULL);
-                    fprintf(stderr,"join result:%d\n",joined);
+                    if(joined!=0){
+                        fprintf(stderr,"\njoin result:%d\n",joined);
+                    }
                     DHERE
                         _thread_status[previous]=0;
                 }
                 DHERE
                     resp->thread_id=current_thread;
                 DHERE
-                    int iret1 = pthread_create(&_threads[current_thread], &attr, handleresponse, (void *) resp);
+                int iret1 = pthread_create(&_threads[current_thread], &attr, handleresponse, (void *) resp);
                 DHERE
                     /**
                       joined=pthread_join(_threads[current_thread],NULL);
@@ -407,14 +416,12 @@ void epoll_callback (int fd){
                         fprintf(stderr,"not zero returned\n");
                         exit(16);
                     }
-                LOCK
-                    _thread_status[current_thread]=1;
+                _thread_status[current_thread]=1;
                 current_thread++;
                 if(current_thread==MAX_THREADS){
                     current_thread=0;
                 }
-                UNLOCK
-                    fprintf(stderr,"curent thread points to:%d\n",current_thread);
+                //fprintf(stderr,"curent thread points to:%d\n",current_thread);
                 //handleresponse(ClientFP, Req);
                 DHERE
             }
@@ -482,22 +489,26 @@ int cburldecode(char *str, int len)
 /**
  * 设置为非阴塞模式
  * setting to non-blocking mode
+ * return 0 normally
+ * return -1 if can't get F_GETFL
+ * return -2 if can't set NONBLOCK;
  * */
-void setnonblocking(int sock)
+int setnonblocking(int sock)
 {
     int opts;
     opts=fcntl(sock,F_GETFL);
     if(opts<0)
     {
-        perror("fcntl(sock,GETFL)");
-        exit(1);
+        prterrmsg("fcntl(sock,GETFL)");
+        return HERR_FGETFD ;
     }
     opts = opts|O_NONBLOCK;
     if(fcntl(sock,F_SETFL,opts)<0)
     {
-        perror("fcntl(sock,SETFL,opts)");
-        exit(1);
+        prterrmsg("fcntl(sock,SETFL,opts)");
+        return HERR_FSETFD ;
     }  
+    return 0;
 }
 
 
@@ -544,7 +555,6 @@ int daemonize(char * access_log,char * error_log){
 
 int main(int argc,void ** argv)
 {
-    fprintf(stderr,"edeadlk:%d,e:einval:%d,esrch:%d",EDEADLK,EINVAL,ESRCH);
     signal(SIGINT,sig);
     pthread_mutex_init(&mutex,NULL);
     int k;
@@ -603,13 +613,12 @@ int main(int argc,void ** argv)
     DHERE
         error_log   =hlite_dict_get_by_chars(conf,"error_log");
     DHERE
-        if(str_buf2==NULL){
-            DHERE
-                printf("Oh,str_buf2 is null\n");
-        }
+    if(str_buf2==NULL){
+                prterrmsg("Oh,str_buf2 is null\n");
+    }
     if(( str_buf2!=NULL) && (!strcmp(str_buf2->data,"y"))){
         DHERE
-            daemonize(access_log->data,error_log->data);
+        daemonize(access_log->data,error_log->data);
     }
     DHERE
         if ((sockfd = socket(AF_INET,SOCK_STREAM,0))<0){
@@ -631,13 +640,17 @@ int main(int argc,void ** argv)
         hlite_string_free(port_str);
     addr.sin_port = htons(port);
     addr.sin_addr.s_addr = htonl(INADDR_ANY);
+
+    //下面这句我还没搞懂是怎么回事
+    setsockopt(sockfd,SOL_SOCKET,SO_REUSEADDR,(struct sockaddr *)&addr,sizeof(addr));
+
     DHERE
         if(bind(sockfd,(const struct sockaddr *)&addr,sizeof(addr))<0){
-            perror("connect");
+            prterrmsg("connect");
             exit(1);
         }
     if(listen(sockfd,3)<0){
-        perror("listen");
+        prterrmsg("listen");
         exit(1);
     }
 
@@ -645,7 +658,7 @@ int main(int argc,void ** argv)
         int  conn_sock, nfds, n;
     epollfd = epoll_create(10);
     if (epollfd == -1) {
-        perror("epoll_create");
+        prterrmsg("epoll_create");
         exit(3);
     }
 
@@ -670,22 +683,16 @@ int main(int argc,void ** argv)
 
             for (n = 0; n < nfds; ++n) {
                 if (events[n].data.fd == sockfd) {
-                    LOCK
-                        conn_sock = accept(sockfd,
-                                (struct sockaddr *) &local, &addr_len);
-                    UNLOCK
-                        if (conn_sock == -1) {
-                            perror("accept");
-                            exit(3);
-                        }
-                    LOCK
-                        setnonblocking(conn_sock);
-                    UNLOCK
-                        ev.events = EPOLLIN | EPOLLET;
+                    conn_sock = accept(sockfd,(struct sockaddr *) &local, &addr_len);
+                    if (conn_sock == -1) { prterrmsg("accept"); exit(3);}
+                    if(setnonblocking(conn_sock)!=0){
+                        close(conn_sock);
+                        continue;
+                    }
+                    ev.events = EPOLLIN | EPOLLET;
                     ev.data.fd = conn_sock;
-                    if (epoll_ctl(epollfd, EPOLL_CTL_ADD, conn_sock,
-                                &ev) == -1) {
-                        perror("epoll_ctl: conn_sock");
+                    if (epoll_ctl(epollfd, EPOLL_CTL_ADD, conn_sock,&ev) == -1) {
+                        prterrmsg("epoll_ctl: conn_sock");
                         exit(3);
                     }
                 } else {
@@ -714,7 +721,7 @@ int main(int argc,void ** argv)
       if(FD_ISSET(fd,&readfds)){
       if(sockfd ==fd ){
       if((newsockfd = accept (sockfd,(struct sockaddr *) &addr,(socklen_t *) &addr_len))<0)
-      perror("accept");
+      prterrmsg("accept");
       write(newsockfd,msg,sizeof(msg));
       is_connected[newsockfd] =1;
       printf("cnnect from %s\n",inet_ntoa(addr.sin_addr));

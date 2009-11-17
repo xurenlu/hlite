@@ -1,8 +1,8 @@
 CFLAGS = -g -O0 -I./include/ -lpthread
 RM=rm -f 
 BIN="./hlite" 
-LDFLAGS=" -lpthread "
-CC="gcc"
+LDFLAGS= -lpthread 
+CC=gcc
 #OBJECTS="./core/hlite.o ./misc/fcgi.o ./misc/liteutil.o"
 vpath %.h ./include
 vpath %.c kern
@@ -14,7 +14,6 @@ all:hlite
 
 #hlite:$(OBJECTS)
 hlite:hlite.o fcgi.o liteutil.o
-	cc -lpthread -o hlite fcgi.o liteutil.o hlite.o
 
 %.o:%.c %.h
 
@@ -27,13 +26,16 @@ clean:
 	$(RM) *.o test ./hlite
 run:
 	$(BIN)  -f ../etc/demo.conf
-r1:
-	$(BIN)  -f ../etc/1979.conf
 val:
 	valgrind -v --track-origins=yes --tool=memcheck  --show-reachable=yes --leak-check=full ./hlite -f ../etc/demo.conf  
 mem:
-	valgrind -v  --tool=memcheck   ./hlite -f ../etc/demo.conf  
+	valgrind -v  --tool=memcheck  --leak-check=full ./hlite -f ../etc/demo.conf  
+
 curl:
-	curl -i http://localhost:1970/
+	curl -i http://localhost:1973/
+
 .PHONY:clean
+
+load:
+	rm /tmp/url73;echo "http://localhost:1973/" >> /tmp/url73;echo "http://localhost:1973/wifi.sh" >> /tmp/url73;echo "http://localhost:1973/js/" >> /tmp/url73; http_load -p 30 -f 6000 /tmp/url73;
 
