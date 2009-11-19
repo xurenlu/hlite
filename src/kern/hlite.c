@@ -19,9 +19,9 @@
 #include <signal.h>
 
 #define MAXSOCKFD 10
-#define MAX_EVENTS 256 
+#define MAX_EVENTS 1024
 #define MAXBUF 8192
-#define MAX_THREADS 32
+#define MAX_THREADS 1
 #define LOCK pthread_mutex_lock(&mutex);
 #define UNLOCK pthread_mutex_unlock(&mutex);
 
@@ -74,11 +74,11 @@ void removeevt(FILE * sock,int thread_id){
  * generate response
  * */
 void * handleresponse(void * resp){
-    LOCK
     FILE * sock;
     char * f;
     int fd;
     int thread_id;
+    LOCK
     thread_id=((response_arg *)resp)->thread_id;
     fd=((response_arg * )resp)->fd;
     sock=fdopen(fd,"w");
