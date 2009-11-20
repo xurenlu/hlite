@@ -91,6 +91,21 @@ void removeevt(FILE * sock,int thread_id){
         //fprintf(stderr,"fd removed:%d\n",fd);
 }
 /**
+ * 读入数据解析请求
+ * */
+void parse_request(int sockfd,request * req){
+}
+/**
+ * 真正处理访问的部分
+ * */
+void _real_handle(request * req){
+}
+/**
+ *
+ * */
+void output(request * req,response * resp){
+}
+/**
  * generate response
  * */
 void * handleresponse(void * resp){
