@@ -23,7 +23,7 @@
 #define MAXSOCKFD 10
 #define MAX_EVENTS 4096
 #define MAXBUF 8192
-#define MAX_THREADS 64
+#define MAX_THREADS 4
 #define LOCK pthread_mutex_lock(&mutex);
 #define UNLOCK pthread_mutex_unlock(&mutex);
 
@@ -47,7 +47,8 @@ pthread_cond_t  cond;
 pthread_cond_t  cond_main;
 int _thread_status[MAX_THREADS];
 pthread_t _threads[MAX_THREADS];
-sem_t sem[MAX_THREADS];
+sem_t sem;
+sem_t sem_main;
 int seed=0;
 int gen_rand(){
     if(seed==0)
@@ -99,32 +100,23 @@ void * handleresponse(void * resp){
     char msg[1024]="HTTP/1.1 200 OK\r\nSERVER:litehttpd-1.0.0\r\nConnection: keep-alive\r\nContent-type:text/html;\r\n\r\ndo you hlite?";
     printf("thread created\n");
     while(1){ 
-        //fprintf(stderr,"\t\t\tto lock here,id:%d\n",self_id);
-        //locked=pthread_mutex_lock(&mutex);
-        //printf("locked result:%d\n",pthread_mutex_lock(&mutex));
-        //fprintf(stderr,"\t\t\tlocked here,lock result:%d,id:%d,waiting for &cond\n",locked,self_id);
-        /**
-        locked=pthread_mutex_lock(&mutex);
-        printf("thread %d locked:%d\n",self_id,locked);
-
-        pthread_cond_wait(&cond,&mutex);
-        pthread_mutex_unlock(&mutex);
-        */
         printf("thread %d will block till the message\n",self_id);
-        sem_wait(&sem[self_id]);
+        sem_wait(&sem);
+        pthread_mutex_lock(&mutex);
         printf("thread %d got the signal\n",self_id);
         inner_sockfd=global_sock; 
-    
-        //UNLOCK
-        //pthread_mutex_unlock(&mutex);
-        //pthread_cond_signal(&cond_main);
+        global_sock=0;
+        pthread_cond_signal(&cond_main);
+        pthread_mutex_unlock(&mutex);
+        printf("thread %d confirm receive the signal,new sock:%d\n",self_id,inner_sockfd);
         read_data(inner_sockfd);        
         write(inner_sockfd,msg,sizeof(msg));
         ev.events = EPOLLIN | EPOLLET;
         ev.data.fd = inner_sockfd;
         close(inner_sockfd);
+        printf("thread %d close the connection!\n",inner_sockfd);
         epoll_ctl(epollfd, EPOLL_CTL_DEL,inner_sockfd, &ev);
-        printf("thread:%d finished,sockfd:%d,try to next loop\n\n\n",self_id,inner_sockfd);
+
         continue;
         FILE * sock;
         char * f;
@@ -729,12 +721,13 @@ int main(int argc,void ** argv)
      */
     pthread_cond_init(&cond,NULL);
     pthread_cond_init(&cond_main,NULL);
+    sem_init(&sem,0,0);
+    sem_init(&sem_main,0,0);
     int l=0;
     int rnd=0;
     int threads[MAX_THREADS];
     int thread_ids[MAX_THREADS];
     for(;l<MAX_THREADS;l++){
-        sem_init(&sem[l],0,0);
         thread_ids[l]=l;
         rnd=gen_rand()%100;
         printf("gen rand:%d\n",rnd);
@@ -781,16 +774,21 @@ int main(int argc,void ** argv)
                 close(t);
                 */
                 t=gen_rand() % MAX_THREADS;
-                printf("signal new fd:%d \n",events[n].data.fd);
+                printf("got new fd:%d \n",events[n].data.fd);
                 //LOCK
+                //pthread_mutex_lock(&mutex_main);
+                if(global_sock!=0){
+                    printf("main thread waiting worker to fetch \n");
+                    pthread_cond_wait(&cond_main,&mutex_main);
+                    printf("main thread send signal success!\n");
+                }
                 global_sock=events[n].data.fd;
-                sem_post(&sem[t]);
+                //pthread_mutex_unlock(&mutex_main);
+                printf("main thread send new signal\n");
+                sem_post(&sem);
                 //pthread_cond_signal(&cond);
                 //UNLOCK
                 //pthread_mutex_unlock(&mutex);
-        //pthread_mutex_lock(&mutex_main);
-        //pthread_cond_wait(&cond_main,&mutex_main);
-        //pthread_mutex_unlock(&mutex_main);
                 /**
                   DHERE
                   ev.events = EPOLLIN | EPOLLET;
@@ -803,36 +801,5 @@ int main(int argc,void ** argv)
     }
     pthread_join(&thread_ids[0],NULL);
     
-    /**
-     * {{{
-      for(fd=0;fd<MAXSOCKFD;fd++)
-      is_connected[fd]=0;
-      while(1){
-      FD_ZERO(&readfds);
-      FD_SET(sockfd,&readfds);
-      for(fd=0;fd<MAXSOCKFD;fd++)
-      if(is_connected[fd]) FD_SET(fd,&readfds);
-      if(!select(MAXSOCKFD,&readfds,NULL,NULL,NULL))continue;
-      for(fd=0;fd<MAXSOCKFD;fd++)
-      if(FD_ISSET(fd,&readfds)){
-      if(sockfd ==fd ){
-      if((newsockfd = accept (sockfd,(struct sockaddr *) &addr,(socklen_t *) &addr_len))<0)
-      prterrmsg("accept");
-      write(newsockfd,msg,sizeof(msg));
-      is_connected[newsockfd] =1;
-      printf("cnnect from %s\n",inet_ntoa(addr.sin_addr));
-      }else{
-      bzero(buffer,sizeof(buffer));
-      if(read(fd,buffer,sizeof(buffer))<=0){
-      printf("connect closed\n");
-      is_connected[fd]=0;
-      close(fd);
-      }else
-      printf("%s",buffer);
-      }
-      }
-      }
-      //}}}
-      */
 }
 
