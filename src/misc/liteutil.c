@@ -539,3 +539,142 @@ hlite_thread_node * hlite_new_thread_node(){
     p->active=0;
     return p;
 }
+/**
+ * @param pool :
+ * */
+void * hl_init_pool(hlite_pool * pool,size_t size){
+    char * p;
+    DHERE
+    HL_ALLOC(p,size);
+    DHERE
+    if(p==NULL)
+       return NULL;
+    DHERE
+    pool->total_size=size;
+    DHERE
+    pool->head=pool->last=p;
+    pool->tail=p+size;
+    DHERE
+    pool->using_pool=pool;
+}
+/** alloc large memeory space ,and asign it to the pool 
+ * */
+void * hl_pool_alloc_large(hlite_pool * pool,size_t size){
+    if(pool==NULL) return ;
+    hlite_pool * new;
+    if(pool->larges==NULL){
+        pool->larges=hl_pool_alloc(pool,sizeof(hlite_pool));
+    }
+    if(pool->larges==NULL){
+        return NULL;
+    }
+    HL_RESET_POOL(pool->larges);
+    DHERE
+    new=hl_pool_alloc(pool,sizeof(hlite_pool));
+    DHERE
+    if(new==NULL) return NULL;
+    DHERE
+    HL_RESET_POOL(new); 
+    hl_init_pool(new,size);
+    hlite_pool * p;
+    p=pool->larges;
+    while(p->next!=NULL){
+        p=p->next;
+    }
+    p->next=new;
+    return new->head;
+}
+/**
+ * 重置 pool,这之前请记得已经释放了全部的large
+ * */
+void  hl_pool_reset(hlite_pool * pool){
+    if(pool==NULL) return ;
+    hlite_pool * pt;
+    if(pool->using_pool!=NULL){
+        for(pt=pool->using_pool;pt!=NULL;pt=pt->next){
+            HL_FREE(pt->head);
+            HL_RESET_POOL(pt);
+        }
+    }
+    HL_FREE(pool->head);
+    HL_RESET_POOL(pool);
+}
+
+/**
+ * 释放pool中所有的larges
+ * */
+void hl_pool_clear(hlite_pool * pool){
+    if(pool==NULL) return ;
+    hlite_pool * p;
+    p=pool->larges;
+    if(p!=NULL){
+        HL_FREE(p->head);
+        while(p->next!=NULL){
+           p=p->next;
+           if(p==NULL){
+               break;
+            }else{
+                HL_FREE(p->head);
+            }
+        }
+    }
+    hl_pool_reset(pool);
+}
+
+/**
+ * alloc memory from the pool;
+ */
+void * hl_pool_alloc(hlite_pool * pool,size_t size){
+    if(pool==NULL) return NULL;
+    void * p;
+    hlite_pool * pt;
+    DHERE
+    if (size>HL_LARGE_SIZE){
+        //alloc a large block,and add it to the large chains;
+        return hl_pool_alloc_large(pool,size);
+    }
+    /*
+     * find from the pool chains
+     */
+    DHERE
+    if(pool->using_pool!=NULL){
+        for(pt=pool->using_pool;pt!=NULL;pt=pt->next){
+            DHERE
+            if(pt->error_times< 8 && size<(pool->total_size-pool->current_size)){
+                //alloc from the pool
+                p=pt->last+size;
+                DHERE
+                pt->last=p;
+                pt->current_size+=size;
+                return p;
+            }
+            else{
+                printf("can't get enough space \n");
+                //exit(1);
+            }
+            /** if there is no enough space,log it */
+
+        }
+        DHERE
+    }
+    else{
+        DHERE
+        printf("using_pool is empty");
+        exit(2);
+    }
+    DHERE
+    /** if we can't find space from pools,we create new one 
+         and add to the "next" */
+    hlite_pool * new;
+    new=hl_pool_alloc(pool,sizeof(hlite_pool));
+    if(new==NULL){
+        HL_ALLOC(new,sizeof(hlite_pool));
+    }
+    if(new==NULL) return NULL;
+    DHERE
+    HL_RESET_POOL(new); 
+    hl_init_pool(new,2 * pool->total_size);
+    new->next=pool->using_pool;
+    pool->using_pool=new;      
+}
+

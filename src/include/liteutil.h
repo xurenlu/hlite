@@ -18,6 +18,37 @@
 #define prtinfomsg(msg) {fputs(msg, stdout); }
 #define wrtinfomsg(msg) {write(error_log_fd,msg,strlen(msg));}
 
+#define HL_NEW_QUEUE(x) \
+    x=malloc(sizeof(hlite_queue));\
+    x->tail=NULL; \
+    x->head=NULL;
+#define HL_NEW_QUEUE_ITEM(x) \
+        x=malloc(sizeof(hlite_queue_item));
+#define HL_INIT_QUEUE_ITEM(x,init) \
+        x=malloc(sizeof(hlite_queue_item)); \
+        x->data=(void * ) init;
+#define HL_RESET_POOL(x) \
+    x->total_size=0; \
+    x->head=NULL;\
+    x->using_pool=NULL;\
+    x->tail=NULL;\
+    x->current_size=0;\
+    x->chain=NULL;\
+    x->larges=NULL;\
+    x->next=NULL; \
+    x->error_times=0;
+
+#define DEBUG_MEM 1
+#define HL_ALLOC(p,size) p=malloc(size); \
+    if(DEBUG_MEM) printf("DLOG:malloc at:%s#%d,size:%d,pointer:%p\n",__FILE__,__LINE__,size,p);
+#define HL_FREE(x) if(x!=NULL) { \
+    if(DEBUG_MEM) printf("DLOG:free at:%s#%d,pointer:%p\n",__FILE__,__LINE__,x);\
+    free(x);\
+    x=NULL;\
+}
+#define HL_LARGE_SIZE 8192
+
+
 int cbstricmp(const char *astr, const char *bstr);
 int cbstrfwimatch(const char *str, const char *key);
 int cbstrbwmatch(const char *str, const char *key);
