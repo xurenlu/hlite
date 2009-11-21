@@ -10,11 +10,10 @@ vpath %.c misc
 vpath %.c mod
 
 
-all:hlite
+all:hlite test
 
 #hlite:$(OBJECTS)
 hlite:hlite.o fcgi.o liteutil.o
-
 %.o:%.c %.h
 
 
@@ -30,6 +29,8 @@ val:
 	valgrind -v --track-origins=yes --tool=memcheck  --show-reachable=yes --leak-check=full ./hlite -f ../etc/demo.conf  
 mem:
 	valgrind -v  --tool=memcheck  --leak-check=full ./hlite -f ../etc/demo.conf  
+testmem:
+	valgrind -v  --tool=memcheck  --leak-check=full ./test
 
 curl:
 	curl -i http://localhost:1973/

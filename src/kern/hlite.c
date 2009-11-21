@@ -21,9 +21,9 @@
 
 #define TDG printf("%s,line %d,thread:%d\n",__FILE__,__LINE__,self_id);
 #define MAXSOCKFD 10
-#define MAX_EVENTS 4096
+#define MAX_EVENTS 32
 #define MAXBUF 8192
-#define MAX_THREADS 4
+#define MAX_THREADS 2
 #define LOCK pthread_mutex_lock(&mutex);
 #define UNLOCK pthread_mutex_unlock(&mutex);
 
@@ -93,17 +93,17 @@ void removeevt(FILE * sock,int thread_id){
 /**
  * 读入数据解析请求
  * */
-void parse_request(int sockfd,request * req){
+void parse_request(int sockfd,hlite_request * req){
 }
 /**
  * 真正处理访问的部分
  * */
-void _real_handle(request * req){
+void _real_handle(hlite_request * req){
 }
 /**
  *
  * */
-void output(request * req,response * resp){
+void output(hlite_request * req,hlite_response * resp){
 }
 /**
  * generate response

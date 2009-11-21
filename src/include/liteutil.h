@@ -6,7 +6,7 @@
 #define HUGE 4194304 //65536*64;
 
 //#define DHERE fprintf(stderr,"debug:%s,%d\n",__FILE__,__LINE__);
-#define DHERE2 fprintf(stderr,"debug:%s,%d\n",__FILE__,__LINE__);
+//#define DHERE2 fprintf(stderr,"debug:%s,%d\n",__FILE__,__LINE__);
 #define DHERE ;
 #define FALSE 0
 #define TRUE 1
@@ -75,3 +75,41 @@ struct hlite_thread_node_t {
     int create_res;
 };
 typedef  struct hlite_thread_node_t hlite_thread_node;
+
+struct hlite_queue_item_t {
+    void * data;
+    struct hlite_queue_item_t * next;
+    struct hlite_queue_item_t * prev;
+};
+typedef struct hlite_queue_item_t hlite_queue_item;
+struct hlite_queue_t {
+    hlite_queue_item * head;
+    hlite_queue_item * tail;
+};
+typedef struct hlite_queue_t hlite_queue;
+
+
+struct hlite_request_t {
+    int sock_fd;
+};
+typedef struct hlite_request_t hlite_request;
+
+struct hlite_response_t {
+    int sock_fd;
+};
+typedef struct hlite_response_t hlite_response;
+
+
+struct hlite_pool_t {
+    size_t total_size;
+    char * head;
+    char * last;
+    char * tail;
+    size_t current_size;
+    struct hlite_pool_t * chain;
+    struct hlite_pool_t  * larges;
+    struct hlite_pool_t * next;
+    struct hlite_pool_t * using_pool;
+    int error_times;
+};
+typedef struct hlite_pool_t hlite_pool;
