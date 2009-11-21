@@ -3,6 +3,7 @@
 #include "liteutil.h"
 #include "stdio.h"
 #include <assert.h>
+
 #define HL_NEW_QUEUE(x) \
     x=malloc(sizeof(hlite_queue));\
     x->tail=NULL; \
@@ -36,6 +37,9 @@
 
 void * hl_pool_alloc(hlite_pool * pool,size_t size);
 
+/**
+ * @param pool :
+ * */
 void * hl_init_pool(hlite_pool * pool,size_t size){
     char * p;
     DHERE
