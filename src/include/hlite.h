@@ -1,1 +1,1 @@
-void hlite_abort();
+void hl_abort();

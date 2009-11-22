@@ -40,7 +40,7 @@ int current_thread;
 int gg=0;
 int global_sock;
 struct epoll_event ev, events[MAX_EVENTS];
-hlite_dict * conf;
+hl_dict * conf;
 pthread_mutex_t mutex= PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_main = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t  cond;
@@ -66,7 +66,7 @@ void clean_global_mem(){
         close(access_log_fd);
     if(error_log_fd)
         close(error_log_fd);
-    hlite_dict_free(conf);
+    hl_dict_free(conf);
 
 }
 void sig(int signal){
@@ -93,17 +93,17 @@ void removeevt(FILE * sock,int thread_id){
 /**
  * 读入数据解析请求
  * */
-void parse_request(int sockfd,hlite_request * req){
+void parse_request(int sockfd,hl_request * req){
 }
 /**
  * 真正处理访问的部分
  * */
-void _real_handle(hlite_request * req){
+void _real_handle(hl_request * req){
 }
 /**
  *
  * */
-void output(hlite_request * req,hlite_response * resp){
+void output(hl_request * req,hl_response * resp){
 }
 /**
  * generate response
@@ -141,7 +141,7 @@ void * handleresponse(void * resp){
         fd=((response_arg * )resp)->fd;
         sock=fdopen(fd,"w");
         f=((response_arg *)resp)->fpath;
-        hlite_string * root_str;
+        hl_string * root_str;
         root_str = ((response_arg *)resp)->root;
         //fprintf(stderr,"response:%d\n",__LINE__);
         DHERE	
@@ -151,7 +151,7 @@ void * handleresponse(void * resp){
                 bzero((void * )temp,(size_t)strlen((const char *)f)+2);
                 sprintf(temp,"%s\n",f);
                 log_access(temp);
-                hlite_free(temp);
+                hl_free(temp);
             }
         DHERE	
             struct stat info;
@@ -161,7 +161,7 @@ void * handleresponse(void * resp){
         DHERE
             if(root_str==NULL){
                 prterrmsg("root not defined!");
-                hlite_abort();
+                hl_abort();
             }
         DHERE	
             //printf("root_str->data:%d\n",strlen(root_str->data));
@@ -213,26 +213,26 @@ void * handleresponse(void * resp){
             //wrterrmsg("Not found:");
             //wrterrmsg(real);
             DHERE
-                hlite_free(real);
-            hlite_free(orig);
-            hlite_free(query);
+                hl_free(real);
+            hl_free(orig);
+            hl_free(query);
             removeevt(sock,thread_id);
-            hlite_free(f);
-            hlite_free(resp);
+            hl_free(f);
+            hl_free(resp);
             return ;
-            //hlite_string_free(root_str);
+            //hl_string_free(root_str);
         }
             /**
              * 优先看是否需要用CGI处理
              */
             /**
-              hlite_string * cgi_dir;
-              cgi_dir=hlite_dict_get_by_chars(conf,"cgi_dir");
+              hl_string * cgi_dir;
+              cgi_dir=hl_dict_get_by_chars(conf,"cgi_dir");
               if(cbstrfwimatch(real,cgi_dir->data)){
               printf("try to handle cgi:%s\n",real);
               handlecgi(sock,real,f);
               }
-              hlite_string_free(cgi_dir);
+              hl_string_free(cgi_dir);
               */
             //fprintf(stderr,"response:%d\n",__LINE__);
         else if(S_ISREG(info.st_mode)){
@@ -261,13 +261,13 @@ void * handleresponse(void * resp){
                             default :
                                 DHERE	
                                     /**
-                                      hlite_free(real);
+                                      hl_free(real);
                                       DHERE	
-                                      hlite_free(query);
+                                      hl_free(query);
                                       DHERE	
-                                      hlite_free(orig);
+                                      hl_free(orig);
                                       DHERE	
-                                      hlite_string_free(root_str);
+                                      hl_string_free(root_str);
                                       return 0;
                                       */
                         }
@@ -283,15 +283,15 @@ void * handleresponse(void * resp){
             }
         //fprintf(stderr,"response:%d\n",__LINE__);
         DHERE	
-            hlite_free(real);
+            hl_free(real);
         DHERE	
-            hlite_free(query);
+            hl_free(query);
         DHERE	
-            hlite_free(orig);
+            hl_free(orig);
         DHERE	
             removeevt(sock,thread_id);
-        hlite_free(f);
-        hlite_free(resp);
+        hl_free(f);
+        hl_free(resp);
     }
     //return ;
 }
@@ -307,7 +307,7 @@ int handlestaticfile(FILE * sock,char * real,char * f){
     fd=open(real,O_RDONLY);
     if(!fd){
         fprintf(stderr,"file reading error:%s\n",real);
-        hlite_abort();
+        hl_abort();
     }
     len=lseek(fd,0,SEEK_END);
     p=(char *)malloc(len+1);
@@ -349,7 +349,7 @@ int handlestaticfile(FILE * sock,char * real,char * f){
     //fputs(p,sock);
     write(sockfd,p,ret);
     //sizeof(p));
-    hlite_free(p);
+    hl_free(p);
 }
 
 
@@ -382,7 +382,7 @@ int  handlestaticdir(FILE * sock,char * real,char * f){
         }
         //fprintf(stderr,"response:%d\n",__LINE__);
         DHERE
-            hlite_free(filename);
+            hl_free(filename);
         DHERE
             //hacked here.to fix mem bugs;
     }
@@ -403,7 +403,7 @@ void read_data(int fd){
     gg++;
     int len;
     int joined;
-    hlite_thread_node   pthread_node;
+    hl_thread_node   pthread_node;
     int previous=0;
     response_arg * resp;
     bzero(buffer, MAXBUF);
@@ -447,8 +447,8 @@ void read_data(int fd){
                     resp=malloc(sizeof(response_arg  ));
                 resp->fd=fd;
                 resp->fpath=Req;
-                hlite_string * root_str;
-                root_str=hlite_dict_get_by_chars((hlite_dict *)conf,(const char *) "root");
+                hl_string * root_str;
+                root_str=hl_dict_get_by_chars((hl_dict *)conf,(const char *) "root");
                 resp->root=root_str;//some thing wrong
                 DHERE
                     previous=current_thread+1;
@@ -587,7 +587,7 @@ void usage() {
 /**
  * just exit.
  * */
-void hlite_abort(){
+void hl_abort(){
     exit(0);
 }
 
@@ -631,11 +631,11 @@ int main(int argc,void ** argv)
     fd_set readfds;
     char buffer[256];
     char msg[] ="Welcome to server!";
-    hlite_string * configfile=NULL;
-    hlite_string * str_buf1;
-    hlite_string * str_buf2;
-    hlite_string * access_log;
-    hlite_string * error_log;
+    hl_string * configfile=NULL;
+    hl_string * str_buf1;
+    hl_string * str_buf2;
+    hl_string * access_log;
+    hl_string * error_log;
     DHERE
 
         int c;
@@ -643,10 +643,10 @@ int main(int argc,void ** argv)
         switch(c){
             case 'h':
                 usage();
-                hlite_abort();
+                hl_abort();
                 break;
             case 'f':
-                configfile= hlite_new_string(optarg);
+                configfile= hl_new_string(optarg);
                 break;
             case '?':
                 if (isprint (optopt))
@@ -658,21 +658,21 @@ int main(int argc,void ** argv)
                 return 1;
             default:
                 usage();
-                hlite_abort();
+                hl_abort();
         }
     if(configfile==NULL){
         usage();
-        hlite_abort();
+        hl_abort();
     }
     DHERE
-        conf=hlite_new_list(16);
-    hlite_parse_config_file(configfile,conf);
+        conf=hl_new_list(16);
+    hl_parse_config_file(configfile,conf);
     DHERE
-        str_buf2    =hlite_dict_get_by_chars(conf,"run_daemon");
+        str_buf2    =hl_dict_get_by_chars(conf,"run_daemon");
     DHERE
-        access_log  =hlite_dict_get_by_chars(conf,"access_log");
+        access_log  =hl_dict_get_by_chars(conf,"access_log");
     DHERE
-        error_log   =hlite_dict_get_by_chars(conf,"error_log");
+        error_log   =hl_dict_get_by_chars(conf,"error_log");
     DHERE
     if(str_buf2==NULL){
                 prterrmsg("Oh,str_buf2 is null\n");
@@ -685,20 +685,20 @@ int main(int argc,void ** argv)
         if ((sockfd = socket(AF_INET,SOCK_STREAM,0))<0){
             DHERE
                 wrterrmsg("create socket failed:");
-            hlite_abort();
+            hl_abort();
         }
     DHERE
         bzero(&addr,sizeof(addr));
     addr.sin_family =AF_INET;
     int port;
     DHERE
-        hlite_string * port_str;
+        hl_string * port_str;
     DHERE
-        port_str=hlite_dict_get_by_chars(conf,"port");
+        port_str=hl_dict_get_by_chars(conf,"port");
     DHERE
         port=atoi(port_str->data);
     DHERE
-        hlite_string_free(port_str);
+        hl_string_free(port_str);
     addr.sin_port = htons(port);
     addr.sin_addr.s_addr = htonl(INADDR_ANY);
 

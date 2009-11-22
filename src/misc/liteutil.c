@@ -8,11 +8,12 @@ char e404[]="<h1>404 Error</h1><hr><p>File not found!</p>";
 char e403[]="<h1>403 Error</h1><hr><p>Fobidden!</p>";
 char e50x[]="<h1>500 Error</h1><hr><p>Internel Error!</p>";
 
+void * hl_pool_alloc(hl_pool * pool,size_t size);
 
 /**
  * free memory
  * */
-void hlite_free(void * ptr){
+void hl_free(void * ptr){
     if(ptr==NULL){
     }
     else{
@@ -27,9 +28,9 @@ void hlite_free(void * ptr){
  * 初始化一个字符串结构,指定设定为空,长度为0;
  **/
 
-hlite_string *  hlite_init_string(){
-    hlite_string * p;
-    p=malloc(sizeof(hlite_string));
+hl_string *  hl_init_string(){
+    hl_string * p;
+    p=malloc(sizeof(hl_string));
     p->len=0;
     p->data=NULL;
     return p;
@@ -37,7 +38,7 @@ hlite_string *  hlite_init_string(){
 /**
  * malloc address for the string and set value ;
  * */
-int hlite_fill_string(hlite_string * p,const char * data){
+int hl_fill_string(hl_string * p,const char * data){
     p->len=(int)strlen(data)+1;
     p->data=malloc(p->len*sizeof(char));
     bzero(p->data,p->len);
@@ -45,27 +46,27 @@ int hlite_fill_string(hlite_string * p,const char * data){
     return p->len;
 }
 /**
- * generate hlite_string struct from a char point;
+ * generate hl_string struct from a char point;
  */
-hlite_string *  hlite_new_string(const char * p){
-    hlite_string * str=hlite_init_string();
-    hlite_fill_string(str,p);
+hl_string *  hl_new_string(const char * p){
+    hl_string * str=hl_init_string();
+    hl_fill_string(str,p);
     return str;
 }
 
 /**
  * free the string memory
  * */
-void hlite_string_free(hlite_string * str){
-    hlite_free(str->data);
-    hlite_free(str);
+void hl_string_free(hl_string * str){
+    hl_free(str->data);
+    hl_free(str);
 }
 
 /**
  * generate new LIST */
-hlite_list * hlite_new_list(int size){
-    hlite_list * list;
-    list=(hlite_list *) malloc(sizeof(hlite_list));
+hl_list * hl_new_list(int size){
+    hl_list * list;
+    list=(hl_list *) malloc(sizeof(hl_list));
 
     list->size=size;
     list->pos=0;
@@ -75,7 +76,7 @@ hlite_list * hlite_new_list(int size){
 /**
  * append new data to the end of the pointer
  * */
-int hlite_list_append(hlite_list * p,void * data){
+int hl_list_append(hl_list * p,void * data){
     /**
      * handle when pos<size...
      * */
@@ -89,7 +90,7 @@ int hlite_list_append(hlite_list * p,void * data){
 /**
  * check if reach the head of the list;
  */
-int hlite_list_is_bof(hlite_list * p){
+int hl_list_is_bof(hl_list * p){
     if(p->pos==0)
     {
         return 1;
@@ -100,13 +101,13 @@ int hlite_list_is_bof(hlite_list * p){
 /**
  * check  if the list is empty
  * */
-int hlite_list_is_empty(hlite_list * p ){
-    return hlite_list_is_bof(p);
+int hl_list_is_empty(hl_list * p ){
+    return hl_list_is_bof(p);
 }
 /**
  * check if is the tail of the list 
  * */
-int hlite_list_is_eof(hlite_list * p){
+int hl_list_is_eof(hl_list * p){
     if(p->pos==p->size)
         return 1;
     else
@@ -115,13 +116,13 @@ int hlite_list_is_eof(hlite_list * p){
 /**
  * under construction
  */
-int hlite_list_shift(){}
+int hl_list_shift(){}
 
 /**
  * pop out the last item of the list , delete it from the list;
  * return NULL if we have reached the end;
  */
-void *  hlite_list_pop(hlite_list  * list){
+void *  hl_list_pop(hl_list  * list){
     if(list->pos>0){
         list->pos--;
         void * p=list->p[list->pos];
@@ -134,22 +135,22 @@ void *  hlite_list_pop(hlite_list  * list){
 /**
  * 释放list资源
  */
-void * hlite_list_free(hlite_list * list){
-    hlite_free(list);
+void * hl_list_free(hl_list * list){
+    hl_free(list);
 }
 /**
  * split a string to list
  * please call this function twice
  * first with third argument NULL,then you can got a number:the size of the list
- * then,call it again,and pass it with third argument a hlite_list variable with the known size;
+ * then,call it again,and pass it with third argument a hl_list variable with the known size;
  * @param int just_first:return when the [separator] first found.
  * */
-int hlite_split(hlite_string * separator,hlite_string * str,hlite_list * list,int just_first){
+int hl_split(hl_string * separator,hl_string * str,hl_list * list,int just_first){
     /**
      * when list == NULL,will return the size of new list
      */
     DHERE;
-    hlite_string * newstr;
+    hl_string * newstr;
     int i=0;
     int j=0;
     int equal=1;
@@ -181,8 +182,8 @@ int hlite_split(hlite_string * separator,hlite_string * str,hlite_list * list,in
                 temp=str->data+i+j;
                 pj=malloc( (i-last_pos)*sizeof(char));
                 memcpy(pj,str->data+last_pos,(i-last_pos)*sizeof(char));
-                newstr=hlite_new_string(pj);
-                hlite_list_append(list,newstr);
+                newstr=hl_new_string(pj);
+                hl_list_append(list,newstr);
                 printf("append:%s\n",pj);
                 last_pos=i+j;
             }
@@ -199,8 +200,8 @@ int hlite_split(hlite_string * separator,hlite_string * str,hlite_list * list,in
             temp=str->data+last_pos+1;
             pj=malloc( (str->len-last_pos)*sizeof(char));
             memcpy(pj,str->data+last_pos,(str->len-last_pos)*sizeof(char));
-            newstr=hlite_new_string(pj);
-            hlite_list_append(list,newstr);
+            newstr=hl_new_string(pj);
+            hl_list_append(list,newstr);
         }
         return return_array_size;
     }
@@ -213,25 +214,25 @@ int hlite_split(hlite_string * separator,hlite_string * str,hlite_list * list,in
 /**
  * generate a key-value-pair point
  * */
-hlite_keyval_pair * hlite_init_keyval_pair(){
+hl_keyval_pair * hl_init_keyval_pair(){
 
-    hlite_keyval_pair * kvpair;
-    kvpair=malloc(sizeof(hlite_keyval_pair));
+    hl_keyval_pair * kvpair;
+    kvpair=malloc(sizeof(hl_keyval_pair));
     return kvpair;
 
 }
 /**
  * set the key and value of a key-value pair ;
  * */
-int hlite_set_keyval_pair(hlite_keyval_pair * kvpair,hlite_string * key,hlite_string * val){
-    hlite_string * keystr;
-    hlite_string * valstr;
+int hl_set_keyval_pair(hl_keyval_pair * kvpair,hl_string * key,hl_string * val){
+    hl_string * keystr;
+    hl_string * valstr;
 
-    keystr=hlite_init_string();
-    valstr=hlite_init_string();
+    keystr=hl_init_string();
+    valstr=hl_init_string();
 
-    hlite_fill_string(keystr,key->data);
-    hlite_fill_string(valstr,val->data);
+    hl_fill_string(keystr,key->data);
+    hl_fill_string(valstr,val->data);
     kvpair->key=keystr;
     kvpair->value=valstr;
     return 1;
@@ -239,12 +240,12 @@ int hlite_set_keyval_pair(hlite_keyval_pair * kvpair,hlite_string * key,hlite_st
 /**
  * init a key-value-pair with specificed key and value 
  * */
-hlite_keyval_pair * hlite_init_keyval_pair_withkv(hlite_string * key,hlite_string * val){
+hl_keyval_pair * hl_init_keyval_pair_withkv(hl_string * key,hl_string * val){
     int ret=-1;
-    hlite_keyval_pair * kvpair;
-    kvpair=hlite_init_keyval_pair();
+    hl_keyval_pair * kvpair;
+    kvpair=hl_init_keyval_pair();
     if(!kvpair) return NULL;
-    ret=hlite_set_keyval_pair(kvpair,key,val);
+    ret=hl_set_keyval_pair(kvpair,key,val);
     if(ret<0)
         return NULL;
     else
@@ -256,48 +257,48 @@ hlite_keyval_pair * hlite_init_keyval_pair_withkv(hlite_string * key,hlite_strin
  * free the memory of the key-value-pair
  * It didn't release the memory of the key and value;
  * */
-void hlite_free_keyval_pair(hlite_keyval_pair * kvpair){
-    hlite_free(kvpair);
+void hl_free_keyval_pair(hl_keyval_pair * kvpair){
+    hl_free(kvpair);
 }
 
 
 /**
  * set the value of specificed key of a dict.
  * */
-void hlite_dict_set(hlite_dict * dict,hlite_string * key,hlite_string * val){
-    hlite_keyval_pair * pair;
+void hl_dict_set(hl_dict * dict,hl_string * key,hl_string * val){
+    hl_keyval_pair * pair;
     int i=0;
     for(;i<dict->pos;i++){
-        pair=(hlite_keyval_pair * )dict->p[i];
+        pair=(hl_keyval_pair * )dict->p[i];
         if(!strcmp(pair->key->data,key->data))
         {
             pair->value=val;
             return;
         }
     }
-    pair=hlite_init_keyval_pair_withkv(key,val);
-    hlite_list_append(dict,pair);
+    pair=hl_init_keyval_pair_withkv(key,val);
+    hl_list_append(dict,pair);
 }
 
 /**
  * set the value of specificed key of a dict,parameters are chars 
  * */
-void hlite_dict_set_by_chars(hlite_dict * dict,char * key,char * val){
-    hlite_string * keystring;
-    hlite_string * valstring;
-    keystring=hlite_new_string(key);
-    valstring=hlite_new_string(val);
-    hlite_dict_set(dict,keystring,valstring);
-    hlite_string_free(keystring);
+void hl_dict_set_by_chars(hl_dict * dict,char * key,char * val){
+    hl_string * keystring;
+    hl_string * valstring;
+    keystring=hl_new_string(key);
+    valstring=hl_new_string(val);
+    hl_dict_set(dict,keystring,valstring);
+    hl_string_free(keystring);
 }
 /**
  * return that if the dict has the specified key
  **/
-int hlite_dict_has_key (hlite_dict * dict,hlite_string * key){
-    hlite_keyval_pair * pair;
+int hl_dict_has_key (hl_dict * dict,hl_string * key){
+    hl_keyval_pair * pair;
     int i=0;
     for(;i<dict->pos;i++){
-        pair=(hlite_keyval_pair * )dict->p[i];
+        pair=(hl_keyval_pair * )dict->p[i];
         if(!strcmp(pair->key->data,key->data))
         {
             return 1;
@@ -310,11 +311,11 @@ int hlite_dict_has_key (hlite_dict * dict,hlite_string * key){
  * return the value of specificed key of a dict 
  * if there is no item with specified key, you would get a string "" 
  * */
-hlite_string * hlite_dict_get(hlite_dict * dict,hlite_string * key){
-    hlite_keyval_pair * pair;
+hl_string * hl_dict_get(hl_dict * dict,hl_string * key){
+    hl_keyval_pair * pair;
     int i=0;
     for(;i<dict->pos;i++){
-        pair=(hlite_keyval_pair * )dict->p[i];
+        pair=(hl_keyval_pair * )dict->p[i];
         if(!strcmp(pair->key->data,key->data))
         {
             return pair->value;
@@ -327,23 +328,23 @@ hlite_string * hlite_dict_get(hlite_dict * dict,hlite_string * key){
  * get dict data using "const char * key " as key.
  * 
  * */
-hlite_string * hlite_dict_get_by_chars(hlite_dict * dict ,const char  * key){
-    hlite_string * return_str;
-    hlite_string * key_str;
-    key_str= hlite_init_string();
-    hlite_fill_string(key_str,key);
-    return_str =  hlite_dict_get(dict,key_str);
-    hlite_string_free(key_str);
+hl_string * hl_dict_get_by_chars(hl_dict * dict ,const char  * key){
+    hl_string * return_str;
+    hl_string * key_str;
+    key_str= hl_init_string();
+    hl_fill_string(key_str,key);
+    return_str =  hl_dict_get(dict,key_str);
+    hl_string_free(key_str);
     return return_str;
 }
 /**
  * return that if the dict has the specified value
  **/
-int hlite_dict_has_val (hlite_dict * dict,hlite_string * val){
-    hlite_keyval_pair * pair;
+int hl_dict_has_val (hl_dict * dict,hl_string * val){
+    hl_keyval_pair * pair;
     int i=0;
     for(;i<dict->pos;i++){
-        pair=(hlite_keyval_pair * )dict->p[i];
+        pair=(hl_keyval_pair * )dict->p[i];
         if(!strcmp(pair->value->data,val->data))
         {
             return 1;
@@ -352,12 +353,12 @@ int hlite_dict_has_val (hlite_dict * dict,hlite_string * val){
     return 0;
 }
 
-void hlite_dict_free(hlite_dict * dict){
-    hlite_keyval_pair * pair;
+void hl_dict_free(hl_dict * dict){
+    hl_keyval_pair * pair;
     int i=0;
     for(;i<dict->pos;i++){
-        pair=(hlite_keyval_pair * )dict->p[i];
-        hlite_free_keyval_pair(pair);
+        pair=(hl_keyval_pair * )dict->p[i];
+        hl_free_keyval_pair(pair);
     }
 }
 
@@ -366,7 +367,7 @@ void hlite_dict_free(hlite_dict * dict){
  * parse the ini config file;
  * @configfilepath 为配置文件路径
  * */
-int  hlite_parse_config_file(hlite_string *  config_file,hlite_dict * dict ){
+int  hl_parse_config_file(hl_string *  config_file,hl_dict * dict ){
 
     assert(dict);
 
@@ -377,16 +378,16 @@ int  hlite_parse_config_file(hlite_string *  config_file,hlite_dict * dict ){
     FILE * fd;
     char * configfilepath=config_file->data;
 
-    hlite_dict_set_by_chars(dict,"root","");
-    hlite_dict_set_by_chars(dict,"port","");
-    hlite_dict_set_by_chars(dict,"hostname","");
-    hlite_dict_set_by_chars(dict,"access_log","");
-    hlite_dict_set_by_chars(dict,"error_log","");
-    hlite_dict_set_by_chars(dict,"max_clients","");
-    hlite_dict_set_by_chars(dict,"max_childs","");
-    hlite_dict_set_by_chars(dict,"run_daemon","");
-    hlite_dict_set_by_chars(dict,"cgi_pattern","");
-    hlite_dict_set_by_chars(dict,"cgi_dir","");
+    hl_dict_set_by_chars(dict,"root","");
+    hl_dict_set_by_chars(dict,"port","");
+    hl_dict_set_by_chars(dict,"hostname","");
+    hl_dict_set_by_chars(dict,"access_log","");
+    hl_dict_set_by_chars(dict,"error_log","");
+    hl_dict_set_by_chars(dict,"max_clients","");
+    hl_dict_set_by_chars(dict,"max_childs","");
+    hl_dict_set_by_chars(dict,"run_daemon","");
+    hl_dict_set_by_chars(dict,"cgi_pattern","");
+    hl_dict_set_by_chars(dict,"cgi_dir","");
 
 
     fd=fopen(configfilepath,"r");
@@ -403,38 +404,38 @@ int  hlite_parse_config_file(hlite_string *  config_file,hlite_dict * dict ){
         sscanf(buf,"%1024[^=]=%s",key,val);
         len=strlen(val);
         if(!cbstricmp(key,"port")){
-            hlite_dict_set_by_chars(dict,"port",
+            hl_dict_set_by_chars(dict,"port",
                     val);
         }
         else if(!cbstricmp(key,"host")){
-            hlite_dict_set_by_chars(dict,"host",val);
+            hl_dict_set_by_chars(dict,"host",val);
         }
         else if(!cbstricmp(key,"root")){
-            hlite_dict_set_by_chars(dict,"root",val);
+            hl_dict_set_by_chars(dict,"root",val);
         }
         else if(!cbstricmp(key,"cgi_pattern")){
-            hlite_dict_set_by_chars(dict,"cgi_pattern",val);
+            hl_dict_set_by_chars(dict,"cgi_pattern",val);
         }
         else if(!cbstricmp(key,"access_log")){
-            hlite_dict_set_by_chars(dict,"access_log",val);
+            hl_dict_set_by_chars(dict,"access_log",val);
         }
         else if(!cbstricmp(key,"error_log")){
-            hlite_dict_set_by_chars(dict,"error_log",val);
+            hl_dict_set_by_chars(dict,"error_log",val);
         }
         else if(!cbstricmp(key,"max_clients")){
-            hlite_dict_set_by_chars(dict,"max_clients",val);
+            hl_dict_set_by_chars(dict,"max_clients",val);
         }
         else if(!cbstricmp(key,"max_childs")){
-            hlite_dict_set_by_chars(dict,"max_childs",val);
+            hl_dict_set_by_chars(dict,"max_childs",val);
         }
         else if(!cbstricmp(key,"run_daemon")){
-            hlite_dict_set_by_chars(dict,"run_daemon","y");
+            hl_dict_set_by_chars(dict,"run_daemon","y");
             if(!cbstricmp(val,"no")){
-                hlite_dict_set_by_chars(dict,"run_daemon","n");
+                hl_dict_set_by_chars(dict,"run_daemon","n");
             }
         }
         else if(!cbstricmp(key,"cgi_dir")){
-            hlite_dict_set_by_chars(dict,"cgi_dir",val);
+            hl_dict_set_by_chars(dict,"cgi_dir",val);
         }
         else {
             rt_value=-1;
@@ -532,17 +533,17 @@ int cbstrbwmatch(const char *str, const char *key){
 }
 
 /**
- * allocate memory for a hlite_thread_node;
+ * allocate memory for a hl_thread_node;
  * */
-hlite_thread_node * hlite_new_thread_node(){
-    hlite_thread_node * p= malloc(sizeof(hlite_thread_node));
+hl_thread_node * hl_new_thread_node(){
+    hl_thread_node * p= malloc(sizeof(hl_thread_node));
     p->active=0;
     return p;
 }
 /**
  * @param pool :
  * */
-void * hl_init_pool(hlite_pool * pool,size_t size){
+void * hl_init_pool(hl_pool * pool,size_t size){
     char * p;
     DHERE
     HL_ALLOC(p,size);
@@ -559,24 +560,24 @@ void * hl_init_pool(hlite_pool * pool,size_t size){
 }
 /** alloc large memeory space ,and asign it to the pool 
  * */
-void * hl_pool_alloc_large(hlite_pool * pool,size_t size){
+void * hl_pool_alloc_large(hl_pool * pool,size_t size){
     if(pool==NULL) return ;
-    hlite_pool * new;
+    hl_pool * new;
     if(pool->larges==NULL){
-        pool->larges=hl_pool_alloc(pool,sizeof(hlite_pool));
+        pool->larges=hl_pool_alloc(pool,sizeof(hl_pool));
     }
     if(pool->larges==NULL){
         return NULL;
     }
     HL_RESET_POOL(pool->larges);
     DHERE
-    new=hl_pool_alloc(pool,sizeof(hlite_pool));
+    new=hl_pool_alloc(pool,sizeof(hl_pool));
     DHERE
     if(new==NULL) return NULL;
     DHERE
     HL_RESET_POOL(new); 
     hl_init_pool(new,size);
-    hlite_pool * p;
+    hl_pool * p;
     p=pool->larges;
     while(p->next!=NULL){
         p=p->next;
@@ -587,9 +588,9 @@ void * hl_pool_alloc_large(hlite_pool * pool,size_t size){
 /**
  * 重置 pool,这之前请记得已经释放了全部的large
  * */
-void  hl_pool_reset(hlite_pool * pool){
+void  hl_pool_reset(hl_pool * pool){
     if(pool==NULL) return ;
-    hlite_pool * pt;
+    hl_pool * pt;
     if(pool->using_pool!=NULL){
         for(pt=pool->using_pool;pt!=NULL;pt=pt->next){
             HL_FREE(pt->head);
@@ -603,9 +604,9 @@ void  hl_pool_reset(hlite_pool * pool){
 /**
  * 释放pool中所有的larges
  * */
-void hl_pool_clear(hlite_pool * pool){
+void hl_pool_clear(hl_pool * pool){
     if(pool==NULL) return ;
-    hlite_pool * p;
+    hl_pool * p;
     p=pool->larges;
     if(p!=NULL){
         HL_FREE(p->head);
@@ -624,10 +625,10 @@ void hl_pool_clear(hlite_pool * pool){
 /**
  * alloc memory from the pool;
  */
-void * hl_pool_alloc(hlite_pool * pool,size_t size){
+void * hl_pool_alloc(hl_pool * pool,size_t size){
     if(pool==NULL) return NULL;
     void * p;
-    hlite_pool * pt;
+    hl_pool * pt;
     DHERE
     if (size>HL_LARGE_SIZE){
         //alloc a large block,and add it to the large chains;
@@ -665,10 +666,10 @@ void * hl_pool_alloc(hlite_pool * pool,size_t size){
     DHERE
     /** if we can't find space from pools,we create new one 
          and add to the "next" */
-    hlite_pool * new;
-    new=hl_pool_alloc(pool,sizeof(hlite_pool));
+    hl_pool * new;
+    new=hl_pool_alloc(pool,sizeof(hl_pool));
     if(new==NULL){
-        HL_ALLOC(new,sizeof(hlite_pool));
+        HL_ALLOC(new,sizeof(hl_pool));
     }
     if(new==NULL) return NULL;
     DHERE
