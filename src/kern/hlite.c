@@ -20,10 +20,10 @@
 #include <semaphore.h>
 
 #define TDG printf("%s,line %d,thread:%d\n",__FILE__,__LINE__,self_id);
-#define MAXSOCKFD 10
-#define MAX_EVENTS 32
+#define MAXSOCKFD 64
+#define MAX_EVENTS 1024
 #define MAXBUF 8192
-#define MAX_THREADS 2
+#define MAX_THREADS 64
 #define LOCK pthread_mutex_lock(&mutex);
 #define UNLOCK pthread_mutex_unlock(&mutex);
 
@@ -31,6 +31,7 @@
 #define HERR_FGETFD 31
 #define HERR_FSETFD 32
 
+char welcome[1024]="HTTP/1.1 200 OK\r\nSERVER:litehttpd-1.0.0\r\nConnection: keep-alive\r\nContent-type:text/html;\r\n\r\ndo you hlite?";
 
 int access_log_fd=0;
 int error_log_fd=0;
@@ -42,7 +43,10 @@ int global_sock;
 struct epoll_event ev, events[MAX_EVENTS];
 hl_dict * conf;
 pthread_mutex_t mutex= PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex_w= PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex_r= PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_main = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex_cond = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t  cond;
 pthread_cond_t  cond_main;
 int _thread_status[MAX_THREADS];
@@ -50,6 +54,9 @@ pthread_t _threads[MAX_THREADS];
 sem_t sem;
 sem_t sem_main;
 int seed=0;
+hl_pool * pool;
+hl_queue * queue;
+
 int gen_rand(){
     if(seed==0)
         seed=(int)time(0);
@@ -112,27 +119,48 @@ void * handleresponse(void * resp){
     int inner_sockfd;
     int self_id=*((int *)resp);
     int locked=0;
+    hl_queue_item * qi;
+
     char msg[1024]="HTTP/1.1 200 OK\r\nSERVER:litehttpd-1.0.0\r\nConnection: keep-alive\r\nContent-type:text/html;\r\n\r\ndo you hlite?";
-    printf("thread created\n");
+    printf("thread %d created\n",self_id);
     while(1){ 
-        printf("thread %d will block till the message\n",self_id);
-        sem_wait(&sem);
-        pthread_mutex_lock(&mutex);
-        printf("thread %d got the signal\n",self_id);
-        inner_sockfd=global_sock; 
-        global_sock=0;
-        pthread_cond_signal(&cond_main);
-        pthread_mutex_unlock(&mutex);
-        printf("thread %d confirm receive the signal,new sock:%d\n",self_id,inner_sockfd);
+        printf("thread %d cryled;\n",self_id);
+
+        pthread_mutex_lock(&mutex_cond);
+        printf("thread %d waiting...;\n",self_id);
+        pthread_cond_wait(&cond,&mutex_cond);
+        printf("thread %d got signal...;\n",self_id);
+        pthread_mutex_unlock(&mutex_cond);
+
+        pthread_mutex_lock(&mutex_r);
+        qi=queue->head;
+        if(qi==NULL){
+            pthread_mutex_unlock(&mutex_r);
+            continue;
+        }
+        pthread_mutex_lock(&mutex_w);
+        queue->head=queue->head->next;
+        pthread_mutex_unlock(&mutex_w);
+        pthread_mutex_unlock(&mutex_r);
+        inner_sockfd=qi->fd;
+        printf("new FD:%d,thread:%d\n\n\n",inner_sockfd,self_id);
+        HL_FREE(qi);
         read_data(inner_sockfd);        
         write(inner_sockfd,msg,sizeof(msg));
+        printf("close FD:%d,thread:%d\n\n\n",inner_sockfd,self_id);
+        close(inner_sockfd);
         ev.events = EPOLLIN | EPOLLET;
         ev.data.fd = inner_sockfd;
-        close(inner_sockfd);
-        printf("thread %d close the connection!\n",inner_sockfd);
         epoll_ctl(epollfd, EPOLL_CTL_DEL,inner_sockfd, &ev);
-
+        pthread_cond_signal(&cond);
         continue;
+
+
+
+
+
+
+
         FILE * sock;
         char * f;
         int fd;
@@ -617,13 +645,33 @@ int daemonize(char * access_log,char * error_log){
 int main(int argc,void ** argv)
 {
     signal(SIGINT,sig);
+    //开一个内存池
+    HL_ALLOC(pool,sizeof(hl_pool));
+    if(pool==NULL){
+        perror("can allocate memory space for the pool");
+        exit(1);
+    }
+    HL_RESET_POOL(pool);
+    hl_init_pool(pool,BUFSIZE);
+
+    queue=hl_pool_alloc(pool,sizeof(hl_queue));
+    if(queue==NULL)
+    {
+        perror("can allocate memory space from pool for the queue");
+        exit(2);
+    }
+    queue->tail=NULL;
+    queue->head=NULL;
+
+    hl_queue_item * qi;
+
+
     int k;
     int semv;
     for(k=0;k<MAX_THREADS;k++){
         _thread_status[k]=0;
     }
-    DHERE
-        current_thread=0;
+    current_thread=0;
     int sockfd,newsockfd,is_connected[MAXSOCKFD],fd;
     struct sockaddr_in addr;
     struct sockaddr local;
@@ -638,7 +686,7 @@ int main(int argc,void ** argv)
     hl_string * error_log;
     DHERE
 
-        int c;
+    int c;
     while((c = getopt (argc,(char * const *) argv, "hf:")) != -1)
         switch(c){
             case 'h':
@@ -763,9 +811,8 @@ int main(int argc,void ** argv)
         for (n = 0; n < nfds; ++n) {
             if (events[n].data.fd == sockfd) {
                 conn_sock = accept(sockfd,(struct sockaddr *) &local, &addr_len);
-                printf("\n\n\naccepted new socked:%d\n",conn_sock);
                 if (conn_sock == -1) {
-                    prterrmsg("accept"); 
+                    prterrmsg("================accept============"); 
                     exit(3);
                 }
                 else if(setnonblocking(conn_sock)!=0){
@@ -782,35 +829,32 @@ int main(int argc,void ** argv)
                 }
             } else {
                 int t;
-                /**
-                int t=events[n].data.fd;
-                char msg[1024]="HTTP/1.1 200 OK\r\nSERVER:litehttpd-1.0.0\r\nConnection: keep-alive\r\nContent-type:text/html;\r\n\r\ndo you hlite?";
-                write(t,msg,sizeof(msg));
-                close(t);
-                */
-                t=gen_rand() % MAX_THREADS;
-                printf("got new fd:%d \n",events[n].data.fd);
-                //LOCK
-                //pthread_mutex_lock(&mutex_main);
-                if(global_sock!=0){
-                    printf("main thread waiting worker to fetch \n");
-                    pthread_cond_wait(&cond_main,&mutex_main);
-                    printf("main thread send signal success!\n");
+                HL_ALLOC(qi,sizeof(hl_queue_item));
+                qi->prev=qi->next=NULL;
+                qi->fd=events[n].data.fd;
+                printf("====new sock READY:%d\n",qi->fd);
+                pthread_mutex_lock(&mutex_r);
+                if(queue->tail==NULL||queue->head==NULL){
+                    pthread_mutex_unlock(&mutex_r);
+                    queue->tail=qi;
+                    queue->head=qi;
                 }
-                global_sock=events[n].data.fd;
-                //pthread_mutex_unlock(&mutex_main);
-                printf("main thread send new signal\n");
-                sem_post(&sem);
-                //pthread_cond_signal(&cond);
-                //UNLOCK
-                //pthread_mutex_unlock(&mutex);
-                /**
-                  DHERE
-                  ev.events = EPOLLIN | EPOLLET;
-                  ev.data.fd = events[n].data.fd;
-                  epoll_ctl(epollfd, EPOLL_CTL_DEL, events[n].data.fd, &ev);
-                  close(events[n].data.fd); 
-                  */
+                else{
+                    pthread_mutex_unlock(&mutex_r);
+                    pthread_mutex_unlock(&mutex_w);
+                    queue->tail->next=qi;
+                    qi->prev=queue->tail;
+                    queue->tail=qi;
+                    pthread_mutex_unlock(&mutex_w);
+                    //qi->fd=events[n].data.fd;
+                }
+                //一旦有连接进来,就激活让大家去竟争;;
+                pthread_cond_signal(&cond);
+                printf("#####thread send signal\n");
+                //sem_post(&sem);
+                //client_sockfd=events[n].data.fd;
+                //fprintf(*client_sockfd,welcome);
+                
             }
         }
     }

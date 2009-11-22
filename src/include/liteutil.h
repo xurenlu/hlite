@@ -5,9 +5,9 @@
 #define BIG 65536
 #define HUGE 4194304 //65536*64;
 
-//#define DHERE fprintf(stderr,"debug:%s,%d\n",__FILE__,__LINE__);
+#define DHERE fprintf(stderr,"debug:%s,%d\n",__FILE__,__LINE__);
 //#define DHERE2 fprintf(stderr,"debug:%s,%d\n",__FILE__,__LINE__);
-#define DHERE ;
+//#define DHERE ;
 #define FALSE 0
 #define TRUE 1
 #define VERSION "0.1.1"
@@ -108,11 +108,12 @@ struct hl_thread_node_t {
 typedef  struct hl_thread_node_t hl_thread_node;
 
 struct hl_queue_item_t {
-    void * data;
+    int fd;
     struct hl_queue_item_t * next;
     struct hl_queue_item_t * prev;
 };
 typedef struct hl_queue_item_t hl_queue_item;
+
 struct hl_queue_t {
     hl_queue_item * head;
     hl_queue_item * tail;
