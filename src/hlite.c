@@ -23,7 +23,7 @@
 #define MAXSOCKFD 64
 #define MAX_EVENTS 1024
 #define MAXBUF 8192
-#define MAX_THREADS 64
+#define MAX_THREADS 128
 #define LOCK pthread_mutex_lock(&mutex);
 #define UNLOCK pthread_mutex_unlock(&mutex);
 
