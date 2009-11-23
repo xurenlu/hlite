@@ -1,0 +1,32 @@
+General Title
+    [title link]
+    Last Updated: \%\%date(\%Y-\%m-\%d)
+
+%! target:html
+%! encoding: UTF-8
+%! options: --toc
+%! postproc(html): @@ <BR>
+%! postproc(xhtml): @@ <BR>
+%! postproc(html): {{(.*?)}} <\1>
+%!postproc(html): {{ <
+%!postproc(html): }} >
+
+
+=关于函数=
+== 函数命名==
+    应为"模块_子模块_主语_谓语_宾语_副词"这样的结构,使如:
+
+    hlite_new_string (没有主语,new是动词,string是宾语)
+
+    hlite_dict_get_val_by_chars_key (没有主语,get是动词,val是宾语,by_chars_key是副词)
+
+== 关于内存 ==
+
+- 一般来说不应该在子函数内部分配内存了却不在函数里释放;
+- 如果在子函数内部分配内存了却不释放,函数名应该有new/init这个词在里面,如hlite_new_string,hlite_new_dict... new 一般没有初始值或初始值为NULL或置为0,init表示根据传入参数设置了初始值;
+- 如果在子函数里面释放了不是在该函数申请的内存,函数名称应该有free这个词在里面,如hlite_free_string,hlite_free_string;
+- 任何函数内部应该申请内存,自行拷贝,使用完后在函数里就释放这块内存;
+- 一个确定的函数,是否存在申请了内存却未释放的情况,应该是确定的,不能两种情况都存在,并且是可以从函数是否包含"new"可以看出来的;
+- 不应该用两个指针指向同一块内存;
+
+
