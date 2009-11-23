@@ -38,7 +38,7 @@
 #include <arpa/inet.h>
 
 #include "fastcgi.h"
-#include "fcgi.h"
+//#include "fcgi.h"
 #include "liteutil.h"
 
 #define REENTRANCY_THRESHOLD 5

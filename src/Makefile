@@ -1,4 +1,4 @@
-CFLAGS = -g -O0 -I./include/ -lpthread
+CFLAGS = -g -O3 -I./include/ -lpthread
 RM=rm -f 
 BIN="./hlite" 
 LDFLAGS= -lpthread 
@@ -13,7 +13,7 @@ vpath %.c mod
 all:hlite test
 
 #hlite:$(OBJECTS)
-hlite:hlite.o fcgi.o liteutil.o
+hlite:hlite.o  liteutil.o
 %.o:%.c %.h
 
 
