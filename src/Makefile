@@ -1,4 +1,4 @@
-CFLAGS = -g -O3 -I./include/ -lpthread
+CFLAGS = -g -O0 -I./include/ -I./ -lpthread
 RM=rm -f 
 BIN="./hlite" 
 LDFLAGS= -lpthread 

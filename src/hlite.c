@@ -9,7 +9,6 @@
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <stdio.h>
 #include <errno.h>
 #include <unistd.h>
 #include <hlite.h>
@@ -18,6 +17,7 @@
 #include <dirent.h>
 #include <signal.h>
 #include <semaphore.h>
+#include <string.h>
 
 #define TDG printf("%s,line %d,thread:%d\n",__FILE__,__LINE__,self_id);
 #define MAXSOCKFD 64
@@ -30,6 +30,9 @@
 
 #define HERR_FGETFD 31
 #define HERR_FSETFD 32
+
+void read_data(int fd);
+
 
 char welcome[1024]="HTTP/1.1 200 OK\r\nSERVER:litehttpd-1.0.0\r\nConnection: keep-alive\r\nContent-type:text/html;\r\n\r\ndo you hlite?";
 
@@ -47,6 +50,7 @@ pthread_mutex_t mutex_w= PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_r= PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_main = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_cond = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex_free = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t  cond;
 pthread_cond_t  cond_main;
 int _thread_status[MAX_THREADS];
@@ -115,7 +119,7 @@ void output(hl_request * req,hl_response * resp){
 /**
  * generate response
  * */
-void * handleresponse(void * resp){
+void * worker_thread(void * resp){
     int inner_sockfd;
     int self_id=*((int *)resp);
     int locked=0;
@@ -126,25 +130,29 @@ void * handleresponse(void * resp){
     while(1){ 
         printf("thread %d cryled;\n",self_id);
 
-        pthread_mutex_lock(&mutex_cond);
-        printf("thread %d waiting...;\n",self_id);
-        pthread_cond_wait(&cond,&mutex_cond);
-        printf("thread %d got signal...;\n",self_id);
-        pthread_mutex_unlock(&mutex_cond);
-
+		if(queue->head==NULL){
+			pthread_mutex_lock(&mutex_cond);
+			printf("thread %d waiting...;\n",self_id);
+			pthread_cond_wait(&cond,&mutex_cond);
+			printf("thread %d got signal...;\n",self_id);
+			pthread_mutex_unlock(&mutex_cond);
+			continue;
+		}
         pthread_mutex_lock(&mutex_r);
         qi=queue->head;
         if(qi==NULL){
             pthread_mutex_unlock(&mutex_r);
             continue;
         }
-        pthread_mutex_lock(&mutex_w);
+        //pthread_mutex_lock(&mutex_w);
         queue->head=queue->head->next;
-        pthread_mutex_unlock(&mutex_w);
+        //pthread_mutex_unlock(&mutex_w);
         pthread_mutex_unlock(&mutex_r);
         inner_sockfd=qi->fd;
         printf("new FD:%d,thread:%d\n\n\n",inner_sockfd,self_id);
+        pthread_mutex_lock(&mutex_free);
         HL_FREE(qi);
+        pthread_mutex_unlock(&mutex_free);
         read_data(inner_sockfd);        
         write(inner_sockfd,msg,sizeof(msg));
         printf("close FD:%d,thread:%d\n\n\n",inner_sockfd,self_id);
@@ -476,7 +484,7 @@ void read_data(int fd){
                 resp->fd=fd;
                 resp->fpath=Req;
                 hl_string * root_str;
-                root_str=hl_dict_get_by_chars((hl_dict *)conf,(const char *) "root");
+                root_str=(hl_string * ) hl_dict_get_by_chars((hl_dict *)conf,(const char *) "root");
                 resp->root=root_str;//some thing wrong
                 DHERE
                     previous=current_thread+1;
@@ -496,7 +504,7 @@ void read_data(int fd){
                 DHERE
                     resp->thread_id=current_thread;
                 DHERE
-                int iret1 = pthread_create(&_threads[current_thread], &attr, handleresponse, (void *) resp);
+                int iret1 = pthread_create(&_threads[current_thread], &attr, worker_thread, (void *) resp);
                 DHERE
                     /**
                       joined=pthread_join(_threads[current_thread],NULL);
@@ -511,7 +519,7 @@ void read_data(int fd){
                     current_thread=0;
                 }
                 //fprintf(stderr,"curent thread points to:%d\n",current_thread);
-                //handleresponse(ClientFP, Req);
+                //worker_thread(ClientFP, Req);
                 DHERE
             }
         }
@@ -628,12 +636,12 @@ int daemonize(char * access_log,char * error_log){
       if (fork())
       exit(0);
       */
-    access_log_fd=open(access_log,O_CREAT|O_RDWR);
+    access_log_fd=open(access_log,O_CREAT|O_RDWR,S_IWUSR|S_IRUSR);
     if(!access_log_fd){
         fprintf(stderr,"ERROR:Can't Write Access Log file,Terminating...\n");
         exit(0);
     }
-    error_log_fd=open(error_log,O_CREAT|O_RDWR);
+    error_log_fd=open(error_log,O_CREAT|O_RDWR,  S_IWUSR|S_IRUSR);
     if(!error_log_fd){
         fprintf(stderr,"ERROR:Can't Write Error Log file,Terminating...\n");
         exit(0);
@@ -654,7 +662,7 @@ int main(int argc,void ** argv)
     HL_RESET_POOL(pool);
     hl_init_pool(pool,BUFSIZE);
 
-    queue=hl_pool_alloc(pool,sizeof(hl_queue));
+    queue=(hl_queue * )hl_pool_alloc(pool,sizeof(hl_queue));
     if(queue==NULL)
     {
         perror("can allocate memory space from pool for the queue");
@@ -694,7 +702,7 @@ int main(int argc,void ** argv)
                 hl_abort();
                 break;
             case 'f':
-                configfile= hl_new_string(optarg);
+                configfile= (hl_string * )hl_new_string(optarg);
                 break;
             case '?':
                 if (isprint (optopt))
@@ -713,14 +721,14 @@ int main(int argc,void ** argv)
         hl_abort();
     }
     DHERE
-        conf=hl_new_list(16);
+    conf=(hl_dict * ) hl_new_list(16);
     hl_parse_config_file(configfile,conf);
     DHERE
-        str_buf2    =hl_dict_get_by_chars(conf,"run_daemon");
+        str_buf2    =(hl_string * )hl_dict_get_by_chars(conf,"run_daemon");
     DHERE
-        access_log  =hl_dict_get_by_chars(conf,"access_log");
+        access_log  =(hl_string *) hl_dict_get_by_chars(conf,"access_log");
     DHERE
-        error_log   =hl_dict_get_by_chars(conf,"error_log");
+        error_log   =(hl_string *) hl_dict_get_by_chars(conf,"error_log");
     DHERE
     if(str_buf2==NULL){
                 prterrmsg("Oh,str_buf2 is null\n");
@@ -742,7 +750,7 @@ int main(int argc,void ** argv)
     DHERE
         hl_string * port_str;
     DHERE
-        port_str=hl_dict_get_by_chars(conf,"port");
+        port_str=(hl_string * )hl_dict_get_by_chars(conf,"port");
     DHERE
         port=atoi(port_str->data);
     DHERE
@@ -788,14 +796,17 @@ int main(int argc,void ** argv)
     sem_init(&sem_main,0,0);
     int l=0;
     int rnd=0;
-    int threads[MAX_THREADS];
+    pthread_t threads[MAX_THREADS];
     int thread_ids[MAX_THREADS];
     for(;l<MAX_THREADS;l++){
         thread_ids[l]=l;
         rnd=gen_rand()%100;
         printf("gen rand:%d\n",rnd);
         usleep(gen_rand()%100);
-        pthread_create(&threads[l],NULL,handleresponse,&thread_ids[l]);
+        pthread_create(&threads[l],
+                NULL,
+                worker_thread,
+                (void * )&thread_ids[l]);
     }
 
     while(1){
@@ -841,6 +852,7 @@ int main(int argc,void ** argv)
                 }
                 else{
                     pthread_mutex_unlock(&mutex_r);
+                    //queue->tail有可能就是工作线程中的queue->head,所以要加锁;
                     pthread_mutex_unlock(&mutex_w);
                     queue->tail->next=qi;
                     qi->prev=queue->tail;
@@ -850,7 +862,7 @@ int main(int argc,void ** argv)
                 }
                 //一旦有连接进来,就激活让大家去竟争;;
                 pthread_cond_signal(&cond);
-                printf("#####thread send signal\n");
+                //printf("#####thread send signal\n");
                 //sem_post(&sem);
                 //client_sockfd=events[n].data.fd;
                 //fprintf(*client_sockfd,welcome);
@@ -858,7 +870,7 @@ int main(int argc,void ** argv)
             }
         }
     }
-    pthread_join(&thread_ids[0],NULL);
+    pthread_join(thread_ids[0],NULL);
     
 }
 

@@ -195,13 +195,13 @@ int main(int argc,char ** argv){
     HL_ALLOC(pool,sizeof(hl_pool));
     HL_RESET_POOL(pool);
     hl_init_pool(pool,BUFSIZE);
-    char * pl1=hl_pool_alloc(pool,sizeof(char )*100);
+    void * pl1=hl_pool_alloc(pool,sizeof(char )*100);
     printf("debug:new alloced:p1:%p\n",pl1);
-    char * pl2=hl_pool_alloc(pool,sizeof(char )*200);
+    void * pl2=hl_pool_alloc(pool,sizeof(char )*200);
     printf("debug:new alloced:p2:%p\n",pl2);
-    char * pl4=hl_pool_alloc(pool,sizeof(char )*500);
+    void * pl4=hl_pool_alloc(pool,sizeof(char )*500);
     printf("debug:new alloced:p4:%p\n",pl4);
-    char * pl3=hl_pool_alloc(pool,sizeof(char )*8000);
+    void * pl3=hl_pool_alloc(pool,sizeof(char )*8000);
     printf("debug:new alloced:p3:%p\n",pl3);
     /*
     hl_pool_reset(pool);
