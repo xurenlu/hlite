@@ -23,7 +23,7 @@
 #define MAXSOCKFD 64
 #define MAX_EVENTS 1024
 #define MAXBUF 8192
-#define MAX_THREADS 128
+#define MAX_THREADS 16
 #define LOCK pthread_mutex_lock(&mutex);
 #define UNLOCK pthread_mutex_unlock(&mutex);
 
@@ -60,6 +60,8 @@ sem_t sem_main;
 int seed=0;
 hl_pool * pool;
 hl_queue * queue;
+
+hl_string * root_str;
 
 int gen_rand(){
     if(seed==0)
@@ -150,11 +152,11 @@ void * worker_thread(void * resp){
         pthread_mutex_unlock(&mutex_r);
         inner_sockfd=qi->fd;
         printf("new FD:%d,thread:%d\n\n\n",inner_sockfd,self_id);
-        pthread_mutex_lock(&mutex_free);
+        //pthread_mutex_lock(&mutex_free);
         HL_FREE(qi);
-        pthread_mutex_unlock(&mutex_free);
+        //pthread_mutex_unlock(&mutex_free);
         read_data(inner_sockfd);        
-        write(inner_sockfd,msg,sizeof(msg));
+        //write(inner_sockfd,msg,sizeof(msg));
         printf("close FD:%d,thread:%d\n\n\n",inner_sockfd,self_id);
         close(inner_sockfd);
         ev.events = EPOLLIN | EPOLLET;
@@ -162,6 +164,129 @@ void * worker_thread(void * resp){
         epoll_ctl(epollfd, EPOLL_CTL_DEL,inner_sockfd, &ev);
         pthread_cond_signal(&cond);
         continue;
+   }
+
+
+
+    //return ;
+}
+
+
+int handlestaticfile(int sockfd,char * real,char * f){
+    int len,ret;
+    len=ret=0;
+    char * p=NULL;
+    int fd=0;
+    errno=0;
+    fd=open(real,O_RDONLY);
+    if(!fd){
+        fprintf(stderr,"file reading error:%s\n",real);
+        hl_abort();
+    }
+    len=lseek(fd,0,SEEK_END);
+    p=(char *)malloc(len+1);
+    bzero(p,len+1);
+    lseek(fd,0,SEEK_SET);
+    ret=read(fd,p,len);
+    close(fd);
+
+
+
+    char * buf="text/html";
+
+    if(cbstrbwmatch(real,".gif")){ buf="image/gif"; }
+    if(cbstrbwmatch(real,".png")){buf="image/png";}
+    if(cbstrbwmatch(real,".bmp")){buf="image/bmp";}
+    if(cbstrbwmatch(real,".jpg")){buf="image/jpg";}
+    if(cbstrbwmatch(real,".html")){buf="text/html";}
+    if(cbstrbwmatch(real,".htm")){buf="text/html";}
+    if(cbstrbwmatch(real,".php")){buf="text/html";}
+    if(cbstrbwmatch(real,".txt")){buf="text/html";}
+    if(cbstrbwmatch(real,".css")){buf="text/css";}
+    if(cbstrbwmatch(real,".js")){buf="text/javascript";}
+    char * HTMLHEAD = "HTTP/1.1 200 OK\r\nServer:litehttpd-1.0.0\r\nConnection: close\r\nContent-type:";
+    char * output = malloc(ret+1024);
+    if(output==NULL){
+        return;
+    }
+    strncat(output,HTMLHEAD,strlen(HTMLHEAD));
+    strncat(output,buf,strlen(buf));
+    strncat(output,"\r\n\r\n",strlen("\r\n\r\n"));
+    strncat(output,p,ret);
+
+    write(sockfd,output,strlen(output));
+    hl_free(output);
+    hl_free(p);
+}
+
+int  handlestaticdir(int sockfd,char * real,char * f){
+    DIR * dir ;
+    struct dirent *diritem;
+    struct stat info;
+    char * filename;
+    int len;
+    DHERE
+    char * HTMLHEAD = "HTTP/1.1 200 OK\r\nServer:litehttpd-1.0.0\r\nContent-type:";
+    write(sockfd,HTMLHEAD,strlen(HTMLHEAD));
+    dir = opendir(real);
+    if(dir==NULL){
+        write(sockfd,"text/html;",strlen("text/html;"));
+        write(sockfd,"\r\n\r\n",strlen("\r\n\r\n"));
+        write(sockfd,"dir can't be opened",strlen("dir can't be opened"));
+        return 0;
+    }
+        write(sockfd,"text/html;",strlen("text/html;"));
+        write(sockfd,"\r\n\r\n",strlen("\r\n\r\n"));
+    while((diritem=readdir(dir))!=NULL){ 
+        fprintf(stderr,"realpath:%s\n",real);
+    DHERE
+        filename=(char * )malloc(MAXBUF+1);
+    DHERE
+        bzero(filename,MAXBUF+1);
+    DHERE
+        if(cbstrbwmatch(real,"/")){
+            sprintf(filename,"%s%s",real,diritem->d_name);
+        }else{
+            sprintf(filename,"%s/%s",real,diritem->d_name);
+        }
+    DHERE
+        fprintf(stderr,"filename:%s\n",filename);
+        stat(filename,&info);
+    DHERE
+        char * pre = "<li><a href='";
+        char * quote = "'>";
+        char * next = "</a></li>";
+
+        if(S_ISDIR(info.st_mode))
+        {
+    DHERE
+            write(sockfd,pre,strlen(pre));
+            write(sockfd,diritem->d_name,strlen(diritem->d_name));
+    DHERE
+            write(sockfd,quote,strlen(quote));
+            write(sockfd,diritem->d_name,strlen(diritem->d_name));
+            write(sockfd,next,strlen(next));
+    DHERE
+            
+        }else{
+    DHERE
+
+            write(sockfd,pre,strlen(pre));
+            write(sockfd,diritem->d_name,strlen(diritem->d_name));
+    DHERE
+            write(sockfd,quote,strlen(quote));
+            write(sockfd,diritem->d_name,strlen(diritem->d_name));
+            write(sockfd,next,strlen(next));
+        }
+
+        DHERE
+            hl_free(filename);
+        DHERE
+
+    }
+    closedir(dir);
+    DHERE
+}
 
 
 
@@ -169,18 +294,57 @@ void * worker_thread(void * resp){
 
 
 
-        FILE * sock;
-        char * f;
-        int fd;
-        int thread_id;
-        thread_id=((response_arg *)resp)->thread_id;
-        fd=((response_arg * )resp)->fd;
-        sock=fdopen(fd,"w");
-        f=((response_arg *)resp)->fpath;
-        hl_string * root_str;
-        root_str = ((response_arg *)resp)->root;
-        //fprintf(stderr,"response:%d\n",__LINE__);
-        DHERE	
+
+/** callback function of epoll */
+void read_data(int fd){
+    //printf("got msg from:child process:%d\n",getpid());
+    char buffer[MAXBUF];
+    gg++;
+    int len;
+    int joined;
+    hl_thread_node   pthread_node;
+    int previous=0;
+    bzero(buffer, MAXBUF);
+    pthread_attr_t attr;
+    /**
+    pthread_attr_init(&attr);
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
+    */
+    //fprintf(stderr,"got fd:%d\n",fd);
+        if ((len = recv(fd, buffer, MAXBUF, 0)) > 0) {
+                DHERE
+                    char * Req;
+                Req=malloc(sizeof(char)*1024);
+                if(cbstrfwimatch(buffer,"GET")){
+                    DHERE
+                        //printf("GET command GET");
+                        DHERE
+                        sscanf(buffer, "GET %s HTTP", Req);
+                }
+                if(cbstrfwimatch(buffer,"HEAD")){
+                    DHERE
+                        //printf("GET command GET");
+                        DHERE
+                        sscanf(buffer, "HEAD %s HTTP", Req);
+                }
+                else if (cbstrfwimatch(buffer,"POST")) {
+                    DHERE
+                        //printf("GET command POST");
+                        DHERE
+                        sscanf(buffer, "POST %s HTTP", Req);
+                }
+                else {
+                    DHERE
+                        //printf("GET command UNKOWN");
+                        // to do.
+                }
+                DHERE
+                    bzero(buffer, MAXBUF);
+                DHERE
+                root_str=(hl_string * ) hl_dict_get_by_chars((hl_dict *)conf,(const char *) "root");
+                DHERE
+
+            char * f = Req;
             if(daemon_y_n){
                 char * temp;
                 temp=(char *)   malloc(sizeof(char) * (strlen((const char * )f)+2));
@@ -189,8 +353,14 @@ void * worker_thread(void * resp){
                 log_access(temp);
                 hl_free(temp);
             }
+                // temp hack by renlu;int iret1 = pthread_create(&_threads[current_thread], &attr, worker_thread, (void *) resp);
+                    /**
+                //fprintf(stderr,"curent thread points to:%d\n",current_thread);
+                //worker_thread(ClientFP, Req);
+                DHERE
+                */
         DHERE	
-            struct stat info;
+        struct stat info;
         char * real;
         int len;
         char * query;
@@ -242,19 +412,22 @@ void * worker_thread(void * resp){
             log_access(real);
         DHERE	
             int stat_result;
+           
+        
+            //(,"hello:%s,%d\n",real,stat_result);
         //fprintf(stderr,"response:%d\n",__LINE__);
         if( (stat_result=stat(real,&info))==-1 ){
-            fprintf(sock,"HTTP/1.1 200 OK\r\nServer: litehttpd-1.0.0\r\nConnection: close\r\n\r\n<html><head><title>lighthttpd-1.0.0 default page</title></head><body>404 forbiden</body></html>");
-            //fprintf(sock,"hello:%s,%d\n",real,stat_result);
+            DHERE
+            char * msg404 = "HTTP/1.1 200 OK\r\nServer: litehttpd-1.0.0\r\nConnection: close\r\n\r\n<html><head><title>lighthttpd-1.0.0 default page</title></head><body>404 forbiden</body></html>";
+            write(fd,msg404,strlen(msg404));
+            //(,"hello:%s,%d\n",real,stat_result);
             //wrterrmsg("Not found:");
             //wrterrmsg(real);
+            fprintf(stderr,"response:%s\n",real);
             DHERE
                 hl_free(real);
             hl_free(orig);
             hl_free(query);
-            removeevt(sock,thread_id);
-            hl_free(f);
-            hl_free(resp);
             return ;
             //hl_string_free(root_str);
         }
@@ -310,12 +483,12 @@ void * worker_thread(void * resp){
                     }
 
                     else{
-                        handlestaticfile(sock,real,orig);
+                        handlestaticfile(fd,real,orig);
                     }
             }
             else if (S_ISDIR(info.st_mode)){
                 DHERE	
-                    handlestaticdir(sock,real,orig);
+                    handlestaticdir(fd,real,orig);
             }
         //fprintf(stderr,"response:%d\n",__LINE__);
         DHERE	
@@ -325,205 +498,7 @@ void * worker_thread(void * resp){
         DHERE	
             hl_free(orig);
         DHERE	
-            removeevt(sock,thread_id);
-        hl_free(f);
-        hl_free(resp);
-    }
-    //return ;
-}
-
-
-int handlestaticfile(FILE * sock,char * real,char * f){
-    int len,ret,sockfd;
-    sockfd=fileno(sock);
-    len=ret=0;
-    char * p=NULL;
-    int fd=0;
-    errno=0;
-    fd=open(real,O_RDONLY);
-    if(!fd){
-        fprintf(stderr,"file reading error:%s\n",real);
-        hl_abort();
-    }
-    len=lseek(fd,0,SEEK_END);
-    p=(char *)malloc(len+1);
-    bzero(p,len+1);
-    lseek(fd,0,SEEK_SET);
-    ret=read(fd,p,len);
-    close(fd);
-
-
-    /**
-     *  handle the content-type:
-     *  */
-    char * buf="text/html";
-
-    if(cbstrbwmatch(real,".gif")){
-        buf="image/gif";
-    }
-    if(cbstrbwmatch(real,".png")){buf="image/png";}
-    if(cbstrbwmatch(real,".bmp")){buf="image/bmp";}
-    if(cbstrbwmatch(real,".jpg")){buf="image/jpg";}
-
-    if(cbstrbwmatch(real,".html")){buf="text/html";}
-    if(cbstrbwmatch(real,".htm")){buf="text/html";}
-    if(cbstrbwmatch(real,".php")){buf="text/html";}
-    if(cbstrbwmatch(real,".txt")){buf="text/html";}
-
-    if(cbstrbwmatch(real,".css")){buf="text/css";}
-    if(cbstrbwmatch(real,".js")){buf="text/javascript";}
-
-    fputs("HTTP/1.1 200 OK\r\n",sock);
-    fputs("SERVER:litehttpd-1.0.0\r\n",sock);
-    fputs("Connection: keep-alive\r\n",sock);
-    fputs("Content-type: ",sock);
-    fputs(buf,sock);
-    fputs("\r\n",sock);
-    //  fputs("Content-Length:",sock);
-    //  fputs(len,sock);
-    fputs("\r\n",sock);
-    //fputs(p,sock);
-    write(sockfd,p,ret);
-    //sizeof(p));
-    hl_free(p);
-}
-
-
-int  handlestaticdir(FILE * sock,char * real,char * f){
-    DIR * dir ;
-    struct dirent *diritem;
-    struct stat info;
-    char * filename;
-    int len;
-    //fprintf(stderr,"response:%d\n",__LINE__);
-    //dir=opendir(real);
-    fprintf(sock, "HTTP/1.1 200 OK\r\nServer:lighttpd-1.0.0\r\nConnection: keep-alive\r\nContent-type: text/html\r\n\r\n\r\n<ul>");
-    fprintf(sock,"testing");
-    return 0;
-    while(TRUE){ 
-        diritem=readdir(dir);
-        if(diritem==NULL) break;
-        filename=(char * )malloc(MAXBUF+1);
-        bzero(filename,MAXBUF+1);
-        if(cbstrbwmatch(real,"/")){
-            sprintf(filename,"%s%s",real,diritem->d_name);
-        }else{
-            sprintf(filename,"%s/%s",real,diritem->d_name);
         }
-        stat(filename,&info);
-        if(S_ISDIR(info.st_mode)){
-            fprintf(sock,"<li><a href='%s/'>%s/</a></li>",diritem->d_name,diritem->d_name);
-        }else{
-            fprintf(sock,"<li><a href='%s'>%s</a></li>",diritem->d_name,diritem->d_name);
-        }
-        //fprintf(stderr,"response:%d\n",__LINE__);
-        DHERE
-            hl_free(filename);
-        DHERE
-            //hacked here.to fix mem bugs;
-    }
-    //fprintf(stderr,"response:%d\n",__LINE__);
-    closedir(dir);
-    DHERE
-}
-
-
-
-
-
-
-/** callback function of epoll */
-void read_data(int fd){
-    //printf("got msg from:child process:%d\n",getpid());
-    char buffer[MAXBUF];
-    gg++;
-    int len;
-    int joined;
-    hl_thread_node   pthread_node;
-    int previous=0;
-    response_arg * resp;
-    bzero(buffer, MAXBUF);
-    pthread_attr_t attr;
-    /**
-    pthread_attr_init(&attr);
-    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
-    */
-    //fprintf(stderr,"got fd:%d\n",fd);
-        while((len = recv(fd, buffer, MAXBUF, 0)) > 0) {
-            printf("receive data:%d bytes\n",len);
-        }
-        return ;
-    DHERE
-        if ((len = recv(fd, buffer, MAXBUF, 0)) > 0) {
-            DHERE
-            {
-                DHERE
-                    char * Req;
-                Req=malloc(sizeof(char)*1024);
-                if(cbstrfwimatch(buffer,"GET")){
-                    DHERE
-                        //printf("GET command GET");
-                        DHERE
-                        sscanf(buffer, "GET /%s HTTP", Req);
-                }
-                else if (cbstrfwimatch(buffer,"POST")) {
-                    DHERE
-                        //printf("GET command POST");
-                        DHERE
-                        sscanf(buffer, "POST /%s HTTP", Req);
-                }
-                else {
-                    DHERE
-                        //printf("GET command UNKOWN");
-                        // to do.
-                }
-                DHERE
-                    bzero(buffer, MAXBUF);
-                DHERE
-                    resp=malloc(sizeof(response_arg  ));
-                resp->fd=fd;
-                resp->fpath=Req;
-                hl_string * root_str;
-                root_str=(hl_string * ) hl_dict_get_by_chars((hl_dict *)conf,(const char *) "root");
-                resp->root=root_str;//some thing wrong
-                DHERE
-                    previous=current_thread+1;
-                    if(previous==MAX_THREADS){
-                        previous=0;
-                    }
-
-                fprintf(stderr,"%d,",gg);
-                if(_thread_status[previous]==1){
-                    joined=pthread_join(_threads[previous],NULL);
-                    if(joined!=0){
-                        fprintf(stderr,"\njoin result:%d\n",joined);
-                    }
-                    DHERE
-                        _thread_status[previous]=0;
-                }
-                DHERE
-                    resp->thread_id=current_thread;
-                DHERE
-                int iret1 = pthread_create(&_threads[current_thread], &attr, worker_thread, (void *) resp);
-                DHERE
-                    /**
-                      joined=pthread_join(_threads[current_thread],NULL);
-                      */
-                    if(iret1!=0){
-                        fprintf(stderr,"not zero returned\n");
-                        exit(16);
-                    }
-                _thread_status[current_thread]=1;
-                current_thread++;
-                if(current_thread==MAX_THREADS){
-                    current_thread=0;
-                }
-                //fprintf(stderr,"curent thread points to:%d\n",current_thread);
-                //worker_thread(ClientFP, Req);
-                DHERE
-            }
-        }
-    pthread_attr_destroy(&attr);
 }
 
 
@@ -723,6 +698,7 @@ int main(int argc,void ** argv)
     DHERE
     conf=(hl_dict * ) hl_new_list(16);
     hl_parse_config_file(configfile,conf);
+    root_str=(hl_string * ) hl_dict_get_by_chars((hl_dict *)conf,(const char *) "root");
     DHERE
         str_buf2    =(hl_string * )hl_dict_get_by_chars(conf,"run_daemon");
     DHERE

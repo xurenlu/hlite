@@ -5,9 +5,9 @@
 #define BIG 65536
 #define HUGE 4194304 //65536*64;
 
-#define DHERE fprintf(stderr,"debug:%s,%d\n",__FILE__,__LINE__);
+//#define DHERE fprintf(stderr,"debug:%s,%d\n",__FILE__,__LINE__);
 //#define DHERE2 fprintf(stderr,"debug:%s,%d\n",__FILE__,__LINE__);
-//#define DHERE ;
+#define DHERE ;
 #define FALSE 0
 #define TRUE 1
 #define VERSION "0.1.1"
